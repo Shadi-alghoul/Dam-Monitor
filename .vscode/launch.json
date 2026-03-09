@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-DamMonitorBackendApplication<dam-monitor-backend>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "ucll.be.dammonitorbackend.DamMonitorBackendApplication",
+            "projectName": "dam-monitor-backend",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
