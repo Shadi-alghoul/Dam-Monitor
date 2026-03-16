@@ -1,6 +1,6 @@
 # Maven
-target/
-!.mvn/wrapper/maven-wrapper.jar
+backend/target/
+!backend/.mvn/wrapper/maven-wrapper.jar
 
 # Logs
 *.log
@@ -40,4 +40,7 @@ HELP.md
 
 # Environment Variables
 .env
-.json
+backend/.env
+backend/.json
+frontend/.env
+frontend/.json
