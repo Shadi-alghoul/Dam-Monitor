@@ -2,6 +2,10 @@ package ucll.be.dammonitorbackend.service;
 
 
 import com.fasterxml.jackson.databind.JsonNode;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +43,8 @@ public class SatelliteService {
     // Rounded to integers — Sentinel Hub requires whole numbers
     private static final int IMAGE_WIDTH  = 1094;
     private static final int IMAGE_HEIGHT = 510;
-
+   
+    
     private final WebClient webClient;
 
     public SatelliteService(WebClient webClient) {
@@ -117,6 +122,11 @@ public class SatelliteService {
     // ── Request body — exact copy of your working curl request ───────────────
 
     private String buildRequestBody() {
+      // setting the latest time range from now until 7 days ago to ensure we get a recent image,
+      // since the curl request you provided had a fixed date range that may no longer contain any images
+        Instant now = Instant.now();
+        Instant from = now.minus(7, ChronoUnit.DAYS); // last 7 days (adjust if needed)
+
         return String.format("""
                 {
                   "input": {
@@ -127,10 +137,10 @@ public class SatelliteService {
                       "type": "sentinel-2-l2a",
                       "dataFilter": {
                         "timeRange": {
-                          "from": "2026-02-18T00:00:00Z",
-                          "to":   "2026-03-18T23:59:59Z"
+                          "from": "%s",
+                          "to":   "%s"
                         },
-                        "maxCloudCoverage": 10
+                        "maxCloudCoverage": 20
                       }
                     }]
                   },
@@ -146,7 +156,9 @@ public class SatelliteService {
                 }
                 """,
                 BBOX_MIN_LON, BBOX_MIN_LAT, BBOX_MAX_LON, BBOX_MAX_LAT,
+                from.toString(), now.toString(),
                 IMAGE_WIDTH, IMAGE_HEIGHT
+                
         );
     }
 }
