@@ -41,8 +41,8 @@ public class SatelliteService {
 
     // ── Exact output dimensions from your working curl request ───────────────
     // Rounded to integers — Sentinel Hub requires whole numbers
-    private static final int IMAGE_WIDTH  = 1094;
-    private static final int IMAGE_HEIGHT = 510;
+    private static final int IMAGE_WIDTH  = 1920;
+    private static final int IMAGE_HEIGHT = 1080;
    
     
     private final WebClient webClient;
