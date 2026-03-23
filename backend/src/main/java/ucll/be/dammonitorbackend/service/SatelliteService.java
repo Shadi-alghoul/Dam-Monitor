@@ -169,10 +169,9 @@ public class SatelliteService {
      *   <li>was captured within the last {@value #CATALOGUE_LOOKBACK_DAYS} days</li>
      * </ul>
      *
-     * The catalogue response is a GeoJSON FeatureCollection.  With
-     * {@code "sortby": [{ "field": "datetime", "direction": "desc" }]} and
-     * {@code "limit": 1}, the first (and only) feature is guaranteed to be the
-     * newest qualifying scene.  We read {@code features[0].properties.datetime}
+     * The catalogue response is a GeoJSON FeatureCollection. We retrieve
+     * multiple scenes and filter/sort them client-side to find the newest
+     * qualifying scene. We read {@code features[0].properties.datetime}
      * — an ISO-8601 string such as {@code "2026-03-18T08:42:11Z"} — and parse
      * it directly into an {@link Instant}.
      *
@@ -188,16 +187,7 @@ public class SatelliteService {
                   "collections": ["sentinel-2-l2a"],
                   "bbox": [%f, %f, %f, %f],
                   "datetime": "%s/%s",
-                  "limit": 1,
-                  "sortby": [{ "field": "datetime", "direction": "desc" }],
-                  "filter": {
-                    "op": "lte",
-                    "args": [
-                      { "property": "eo:cloud_cover" },
-                      20
-                    ]
-                  },
-                  "filter-lang": "cql2-json"
+                  "limit": 20
                 }
                 """,
                 BBOX_MIN_LON, BBOX_MIN_LAT, BBOX_MAX_LON, BBOX_MAX_LAT,
@@ -210,7 +200,7 @@ public class SatelliteService {
                 .uri(catalogueUrl)
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
+                .accept(MediaType.ALL)
                 .bodyValue(catalogueBody)
                 .retrieve()
                 .onStatus(
@@ -232,11 +222,36 @@ public class SatelliteService {
         if (!features.isArray() || features.isEmpty()) {
             throw new RuntimeException(
                     "No Sentinel-2 scenes found in the last " + CATALOGUE_LOOKBACK_DAYS
+                    + " days over Hartbeespoort Dam. "
+                    + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
+        }
+
+        // Filter for cloud cover <= 20% and find the most recent
+        JsonNode bestFeature = null;
+        Instant bestDate = null;
+        
+        for (JsonNode feature : features) {
+            JsonNode properties = feature.path("properties");
+            double cloudCover = properties.path("eo:cloud_cover").asDouble(100.0);
+            String datetimeStr = properties.path("datetime").asText(null);
+            
+            if (datetimeStr != null && cloudCover <= 20.0) {
+                Instant date = Instant.parse(datetimeStr);
+                if (bestDate == null || date.isAfter(bestDate)) {
+                    bestDate = date;
+                    bestFeature = feature;
+                }
+            }
+        }
+        
+        if (bestFeature == null) {
+            throw new RuntimeException(
+                    "No Sentinel-2 scenes found in the last " + CATALOGUE_LOOKBACK_DAYS
                     + " days with ≤ 20 % cloud cover over Hartbeespoort Dam. "
                     + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
         }
 
-        String datetimeStr = features.get(0)
+        String datetimeStr = bestFeature
                 .path("properties")
                 .path("datetime")
                 .asText(null);
@@ -244,7 +259,7 @@ public class SatelliteService {
         if (datetimeStr == null || datetimeStr.isBlank()) {
             throw new RuntimeException(
                     "Catalogue feature is missing properties.datetime — "
-                    + "raw feature: " + features.get(0));
+                    + "raw feature: " + bestFeature);
         }
 
         log.info("Catalogue properties.datetime = {}", datetimeStr);

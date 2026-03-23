@@ -18,4 +18,6 @@ export type EnvironmentalReport = {
   blobName: string;
   imageUrl: string;
   createdAt: string;
+  satelliteImageUrl?: string;
+  satelliteTakenAt?: string;
 };

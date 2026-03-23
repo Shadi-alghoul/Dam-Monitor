@@ -147,7 +147,9 @@ export default function DashboardPage() {
       const created = await uploadReport({
         file: selectedFile,
         description,
-        problemType
+        problemType,
+        satelliteImageUrl: satelliteImageSrc || undefined,
+        satelliteTakenAt: satelliteTakenAt || undefined
       });
       setReports((prev) => [created, ...prev]);
       setSelectedFile(null);
@@ -260,7 +262,10 @@ export default function DashboardPage() {
               <img src={report.imageUrl} alt={report.problemType} loading="lazy" />
               <p className="report-type">{report.problemType.replaceAll("_", " ")}</p>
               <p className="report-description">{report.description}</p>
-              <p className="report-meta">{new Date(report.createdAt).toLocaleString()}</p>
+              {report.satelliteTakenAt && (
+                <p className="report-meta">Satellite image: {new Date(report.satelliteTakenAt).toLocaleString()}</p>
+              )}
+              <p className="report-meta">Reported: {new Date(report.createdAt).toLocaleString()}</p>
             </article>
           ))}
         </div>
