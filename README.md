@@ -19,6 +19,8 @@ set DB_URL=jdbc:postgresql://localhost:5432/dammonitor
 set DB_USERNAME=postgres
 set DB_PASSWORD=postgres
 mvn clean spring-boot:run
+or
+./mvnw.cmd clean spring-boot:run
 ```
 
 Runs on `http://localhost:8080`
