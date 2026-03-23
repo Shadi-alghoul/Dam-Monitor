@@ -20,18 +20,21 @@ public class ImageController {
     public ImageController(ImageStorageService storageService) {
         this.storageService = storageService;
     }
+
     @PostMapping("/upload")
     public ResponseEntity<Map<String, String>> upload(@RequestParam("file") MultipartFile file) throws IOException {
-        String url = storageService.uploadImage(file);
-        return ResponseEntity.ok(Map.of("url", url));
+        ImageStorageService.StoredImage storedImage = storageService.uploadImage(file);
+        return ResponseEntity.ok(Map.of(
+                "url", storedImage.url(),
+                "blobName", storedImage.blobName()));
     }
 
     @GetMapping("/{blobName}")
     public ResponseEntity<byte[]> download(@PathVariable String blobName) {
         byte[] image = storageService.downloadImage(blobName);
         return ResponseEntity.ok()
-            .contentType(MediaType.IMAGE_JPEG) // adjust as needed
-            .body(image);
+                .contentType(MediaType.IMAGE_JPEG) // adjust as needed
+                .body(image);
     }
 
     @DeleteMapping("/{blobName}")
