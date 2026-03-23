@@ -34,9 +34,15 @@ public class ReportController {
     public ResponseEntity<ReportResponse> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam("description") String description,
-            @RequestParam("problemType") ProblemType problemType) {
+            @RequestParam("problemType") ProblemType problemType,
+            @RequestParam(value = "satelliteImageUrl", required = false) String satelliteImageUrl,
+            @RequestParam(value = "satelliteTakenAt", required = false) String satelliteTakenAt) {
         try {
-            EnvironmentalReport saved = reportService.createReport(file, description, problemType);
+            Instant satelliteTakenAtInstant = null;
+            if (satelliteTakenAt != null && !satelliteTakenAt.trim().isEmpty()) {
+                satelliteTakenAtInstant = Instant.parse(satelliteTakenAt);
+            }
+            EnvironmentalReport saved = reportService.createReport(file, description, problemType, satelliteImageUrl, satelliteTakenAtInstant);
             return ResponseEntity.ok(toResponse(saved));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(BAD_REQUEST, ex.getMessage(), ex);
@@ -60,6 +66,8 @@ public class ReportController {
                 report.getProblemType(),
                 report.getBlobName(),
                 report.getImageUrl(),
+                report.getSatelliteImageUrl(),
+                report.getSatelliteTakenAt(),
                 report.getCreatedAt());
     }
 
@@ -69,6 +77,8 @@ public class ReportController {
             ProblemType problemType,
             String blobName,
             String imageUrl,
+            String satelliteImageUrl,
+            Instant satelliteTakenAt,
             Instant createdAt) {
     }
 }

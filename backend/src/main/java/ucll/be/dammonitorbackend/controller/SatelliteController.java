@@ -1,6 +1,7 @@
 package ucll.be.dammonitorbackend.controller;
 
 import ucll.be.dammonitorbackend.service.SatelliteService;
+import ucll.be.dammonitorbackend.service.SatelliteService.SatelliteImageResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,22 +14,36 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * SatelliteController
  *
- * Exposes a single REST endpoint:
+ * Exposes:
  *
- * GET /api/satellite
+ *   GET /api/satellite
  *
- * On success → 200 OK with Content-Type: image/jpeg and the raw PNG bytes
- * On failure → 500 Internal Server Error with a plain-text error message
+ * Success (200):
+ *   Content-Type: image/jpeg
+ *   X-Image-Date: <ISO-8601 exact scene capture time from Sentinel Hub catalogue>
+ *   Body: raw JPEG bytes
+ *
+ * Failure (500):
+ *   Content-Type: text/plain
+ *   Body: error message
  *
  * Usage:
- * curl http://localhost:8080/api/satellite --output satellite.jpg
- * # or open in a browser — most browsers will render PNG directly
+ *   curl -D - http://localhost:8080/api/satellite -o dam.jpg
+ *   # -D - prints headers to stdout so you can see X-Image-Date
  */
 @RestController
 @RequestMapping("/api")
 public class SatelliteController {
 
     private static final Logger log = LoggerFactory.getLogger(SatelliteController.class);
+
+    /**
+     * Response header carrying the exact satellite capture datetime.
+     * Value is sourced from {@code features[0].properties.datetime} in the
+     * Sentinel Hub Catalogue API — not an estimate.
+     * Format: ISO-8601, e.g. {@code 2026-03-18T08:42:11Z}
+     */
+    private static final String HEADER_IMAGE_DATE = "X-Image-Date";
 
     private final SatelliteService satelliteService;
 
@@ -37,39 +52,32 @@ public class SatelliteController {
     }
 
     /**
-     * Fetches a Sentinel-2 satellite image and returns it as a PNG.
+     * Returns the most recent cloud-free Sentinel-2 image of Hartbeespoort Dam.
      *
-     * No request parameters are needed — the area, date range, and image size
-     * are all hardcoded inside SatelliteService.
-     *
-     * @return 200 + PNG bytes, or 500 + error message
+     * The exact capture date verified by the Sentinel Hub Catalogue API is
+     * included in the {@code X-Image-Date} response header so the frontend
+     * can display it alongside the image without a separate request.
      */
     @GetMapping(value = "/satellite", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<byte[]> getSatelliteImage() {
         log.info("Received GET /api/satellite request");
 
         try {
-            SatelliteService.SatelliteImage satelliteImage = satelliteService.fetchSatelliteImage();
+            SatelliteImageResult result = satelliteService.fetchSatelliteImage();
 
-            ResponseEntity.BodyBuilder response = ResponseEntity.ok()
+            return ResponseEntity.ok()
                     .contentType(MediaType.IMAGE_JPEG)
-                    .contentLength(satelliteImage.imageBytes().length)
-                    .header("Content-Disposition", "inline; filename=\"satellite.jpg\"");
-
-            if (satelliteImage.acquiredAt() != null) {
-                response.header("X-Satellite-Taken-At", satelliteImage.acquiredAt().toString());
-            }
-
-            return response.body(satelliteImage.imageBytes());
+                    .contentLength(result.imageBytes().length)
+                    .header("Content-Disposition", "inline; filename=\"satellite.jpg\"")
+                    // Exact capture datetime from the Sentinel Hub catalogue
+                    .header(HEADER_IMAGE_DATE, result.dateTaken().toString())
+                    .body(result.imageBytes());
 
         } catch (Exception ex) {
             log.error("Failed to retrieve satellite image", ex);
 
-            // Return 500 with the error message as plain text
-            // (avoids leaking internal stack traces while still being useful for debugging)
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    // Switch to plain text for the error body
                     .contentType(MediaType.TEXT_PLAIN)
                     .body(("Error fetching satellite image: " + ex.getMessage()).getBytes());
         }

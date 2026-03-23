@@ -26,11 +26,19 @@ export async function uploadReport(payload: {
   file: File;
   description: string;
   problemType: ProblemType;
+  satelliteImageUrl?: string;
+  satelliteTakenAt?: string;
 }): Promise<EnvironmentalReport> {
   const formData = new FormData();
   formData.append("file", payload.file);
   formData.append("description", payload.description);
   formData.append("problemType", payload.problemType);
+  if (payload.satelliteImageUrl) {
+    formData.append("satelliteImageUrl", payload.satelliteImageUrl);
+  }
+  if (payload.satelliteTakenAt) {
+    formData.append("satelliteTakenAt", payload.satelliteTakenAt);
+  }
 
   const response = await fetch(`${API_BASE_URL}/api/reports/upload`, {
     method: "POST",
@@ -57,7 +65,7 @@ export async function fetchSatelliteSnapshot(cacheBuster: number): Promise<{
   const imageBlob = await response.blob();
   return {
     objectUrl: URL.createObjectURL(imageBlob),
-    acquiredAt: response.headers.get("X-Satellite-Taken-At")
+    acquiredAt: response.headers.get("X-Image-Date")
   };
 }
 

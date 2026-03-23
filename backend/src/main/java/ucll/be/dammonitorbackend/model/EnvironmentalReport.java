@@ -33,6 +33,12 @@ public class EnvironmentalReport {
     @Column(nullable = false, length = 2048)
     private String imageUrl;
 
+    @Column(length = 2048)
+    private String satelliteImageUrl;
+
+    @Column
+    private Instant satelliteTakenAt;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -81,5 +87,21 @@ public class EnvironmentalReport {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getSatelliteImageUrl() {
+        return satelliteImageUrl;
+    }
+
+    public void setSatelliteImageUrl(String satelliteImageUrl) {
+        this.satelliteImageUrl = satelliteImageUrl;
+    }
+
+    public Instant getSatelliteTakenAt() {
+        return satelliteTakenAt;
+    }
+
+    public void setSatelliteTakenAt(Instant satelliteTakenAt) {
+        this.satelliteTakenAt = satelliteTakenAt;
     }
 }

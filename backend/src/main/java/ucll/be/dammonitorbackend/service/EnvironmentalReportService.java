@@ -8,6 +8,7 @@ import ucll.be.dammonitorbackend.model.ProblemType;
 import ucll.be.dammonitorbackend.repository.EnvironmentalReportRepository;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -25,7 +26,9 @@ public class EnvironmentalReportService {
     @Transactional
     public EnvironmentalReport createReport(MultipartFile file,
             String description,
-            ProblemType problemType) throws IOException {
+            ProblemType problemType,
+            String satelliteImageUrl,
+            Instant satelliteTakenAt) throws IOException {
         validate(file, description, problemType);
 
         ImageStorageService.StoredImage storedImage = imageStorageService.uploadImage(file);
@@ -35,6 +38,8 @@ public class EnvironmentalReportService {
         report.setProblemType(problemType);
         report.setBlobName(storedImage.blobName());
         report.setImageUrl(storedImage.url());
+        report.setSatelliteImageUrl(satelliteImageUrl);
+        report.setSatelliteTakenAt(satelliteTakenAt);
 
         return reportRepository.save(report);
     }
