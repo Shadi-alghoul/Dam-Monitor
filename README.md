@@ -59,8 +59,9 @@ Or register a new account.
 ## API Endpoints
 
 - `GET /api/satellite` - Live satellite image
-- `GET /api/images` - List stored images
-- `POST /api/images/upload` - Upload image
+- `GET /api/reports` - List submitted environmental reports
+- `POST /api/reports/upload` - Upload report image + description + problem type
+- `GET /api/images` - List raw blob names
 - `DELETE /api/images/{blobName}` - Delete image
 
 ## Stack

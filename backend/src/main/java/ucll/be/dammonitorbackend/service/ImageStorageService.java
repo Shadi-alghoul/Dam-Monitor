@@ -6,7 +6,7 @@ import com.azure.storage.blob.models.BlobHttpHeaders;
 import com.azure.storage.blob.models.BlobItem;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import ucll.be.dammonitorbackend.service.ImageStorageService;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -15,19 +15,22 @@ import java.util.stream.Collectors;
 @Service
 public class ImageStorageService {
 
+    public record StoredImage(String blobName, String url) {
+    }
+
     private final BlobContainerClient containerClient;
 
     public ImageStorageService(BlobContainerClient containerClient) {
         this.containerClient = containerClient;
     }
 
-    public String uploadImage(MultipartFile file) throws IOException {
+    public StoredImage uploadImage(MultipartFile file) throws IOException {
         String blobName = UUID.randomUUID() + "-" + file.getOriginalFilename();
         BlobClient blobClient = containerClient.getBlobClient(blobName);
         blobClient.upload(file.getInputStream(), file.getSize(), true);
         BlobHttpHeaders headers = new BlobHttpHeaders().setContentType(file.getContentType());
         blobClient.setHttpHeaders(headers);
-        return blobClient.getBlobUrl();
+        return new StoredImage(blobName, blobClient.getBlobUrl());
     }
 
     public byte[] downloadImage(String blobName) {
@@ -45,8 +48,8 @@ public class ImageStorageService {
 
     public List<String> listImages() {
         return containerClient.listBlobs()
-            .stream()
-            .map(BlobItem::getName)
-            .collect(Collectors.toList());
+                .stream()
+                .map(BlobItem::getName)
+                .collect(Collectors.toList());
     }
 }

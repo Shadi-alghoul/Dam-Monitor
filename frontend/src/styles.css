@@ -27,7 +27,9 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -93,7 +95,22 @@ input {
   color: #f8fafc;
 }
 
+select,
+textarea {
+  border: 1px solid #334155;
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 0.6rem;
+  padding: 0.7rem;
+  color: #f8fafc;
+}
+
 input:focus {
+  outline: 2px solid #2bbf6c;
+  border-color: transparent;
+}
+
+select:focus,
+textarea:focus {
   outline: 2px solid #2bbf6c;
   border-color: transparent;
 }
@@ -105,6 +122,11 @@ input:focus {
 
 .form-error {
   color: #fecaca;
+  font-size: 0.92rem;
+}
+
+.form-success {
+  color: #bbf7d0;
   font-size: 0.92rem;
 }
 
@@ -149,16 +171,27 @@ input:focus {
 
 .hero-image {
   width: 100%;
-  max-height: 500px;
-  object-fit: cover;
+  height: min(70vh, 720px);
+  object-fit: contain;
+  object-position: center;
   border-radius: 0.75rem;
   border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(2, 6, 23, 0.6);
+}
+
+.satellite-meta {
+  color: #bfdbfe;
+  font-size: 0.9rem;
 }
 
 .image-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.85rem;
+}
+
+.report-form {
+  margin-top: 0.2rem;
 }
 
 .image-card {
@@ -179,9 +212,21 @@ input:focus {
 
 .image-card p {
   font-size: 0.84rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.report-type {
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #a7f3d0;
+}
+
+.report-description {
+  color: #d1d5db;
+}
+
+.report-meta {
+  color: #94a3b8;
+  font-size: 0.78rem;
 }
 
 @media (max-width: 720px) {

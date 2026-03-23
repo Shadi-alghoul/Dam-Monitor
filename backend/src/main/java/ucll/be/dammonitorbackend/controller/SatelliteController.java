@@ -15,14 +15,14 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * Exposes a single REST endpoint:
  *
- *   GET /api/satellite
+ * GET /api/satellite
  *
- * On success  → 200 OK with Content-Type: image/jpeg and the raw PNG bytes
- * On failure  → 500 Internal Server Error with a plain-text error message
+ * On success → 200 OK with Content-Type: image/jpeg and the raw PNG bytes
+ * On failure → 500 Internal Server Error with a plain-text error message
  *
  * Usage:
- *   curl http://localhost:8080/api/satellite --output satellite.jpg
- *   # or open in a browser — most browsers will render PNG directly
+ * curl http://localhost:8080/api/satellite --output satellite.jpg
+ * # or open in a browser — most browsers will render PNG directly
  */
 @RestController
 @RequestMapping("/api")
@@ -49,14 +49,18 @@ public class SatelliteController {
         log.info("Received GET /api/satellite request");
 
         try {
-            byte[] imageBytes = satelliteService.fetchSatelliteImage();
+            SatelliteService.SatelliteImage satelliteImage = satelliteService.fetchSatelliteImage();
 
-            return ResponseEntity.ok()
+            ResponseEntity.BodyBuilder response = ResponseEntity.ok()
                     .contentType(MediaType.IMAGE_JPEG)
-                    .contentLength(imageBytes.length)
-                    // Optional: tell the browser to display inline rather than download
-                    .header("Content-Disposition", "inline; filename=\"satellite.jpg\"")
-                    .body(imageBytes);
+                    .contentLength(satelliteImage.imageBytes().length)
+                    .header("Content-Disposition", "inline; filename=\"satellite.jpg\"");
+
+            if (satelliteImage.acquiredAt() != null) {
+                response.header("X-Satellite-Taken-At", satelliteImage.acquiredAt().toString());
+            }
+
+            return response.body(satelliteImage.imageBytes());
 
         } catch (Exception ex) {
             log.error("Failed to retrieve satellite image", ex);
