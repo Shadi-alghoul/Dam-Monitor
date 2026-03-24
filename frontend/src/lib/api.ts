@@ -56,6 +56,7 @@ export async function uploadReport(payload: {
 export async function fetchSatelliteSnapshot(cacheBuster: number): Promise<{
   objectUrl: string;
   acquiredAt: string | null;
+  sourceCollection: string | null;
 }> {
   const response = await fetch(`${API_BASE_URL}/api/satellite?ts=${cacheBuster}`);
   if (!response.ok) {
@@ -65,7 +66,8 @@ export async function fetchSatelliteSnapshot(cacheBuster: number): Promise<{
   const imageBlob = await response.blob();
   return {
     objectUrl: URL.createObjectURL(imageBlob),
-    acquiredAt: response.headers.get("X-Image-Date")
+    acquiredAt: response.headers.get("X-Image-Date"),
+    sourceCollection: response.headers.get("X-Image-Collection")
   };
 }
 

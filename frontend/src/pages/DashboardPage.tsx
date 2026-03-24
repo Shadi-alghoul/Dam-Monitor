@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [cacheBuster, setCacheBuster] = useState(Date.now());
   const [satelliteImageSrc, setSatelliteImageSrc] = useState<string | null>(null);
   const [satelliteTakenAt, setSatelliteTakenAt] = useState<string | null>(null);
+  const [satelliteCollection, setSatelliteCollection] = useState<string | null>(null);
   const [loadingSatellite, setLoadingSatellite] = useState(true);
   const [satelliteLoadError, setSatelliteLoadError] = useState<string | null>(null);
   const [reports, setReports] = useState<EnvironmentalReport[]>([]);
@@ -52,6 +53,7 @@ export default function DashboardPage() {
     async function loadSatelliteSnapshot() {
       setLoadingSatellite(true);
       setSatelliteLoadError(null);
+      setSatelliteCollection(null);
 
       try {
         const snapshot = await fetchSatelliteSnapshot(cacheBuster);
@@ -68,6 +70,7 @@ export default function DashboardPage() {
           return snapshot.objectUrl;
         });
         setSatelliteTakenAt(snapshot.acquiredAt);
+        setSatelliteCollection(snapshot.sourceCollection);
       } catch (err) {
         if (isMounted) {
           setSatelliteLoadError(err instanceof Error ? err.message : "Unable to load live satellite image.");
@@ -183,6 +186,7 @@ export default function DashboardPage() {
       <section className="panel">
         <h2>Live satellite snapshot</h2>
         <p className="satellite-meta">{takenAtLabel}</p>
+        {satelliteCollection ? <p className="satellite-meta">Satellite source: {satelliteCollection}</p> : null}
         {loadingSatellite ? <p className="satellite-meta">Loading live image...</p> : null}
         {satelliteLoadError ? <p className="form-error">{satelliteLoadError}</p> : null}
         <img

@@ -86,15 +86,27 @@ public class SatelliteService {
     // =========================================================================
 
     /**
-     * Carries both the image and its verified capture date.
+     * Represents a satellite collection with its ID and display name.
+     */
+    public record Collection(String id, String displayName) {}
+
+    /**
+     * Carries the image, its verified capture date, and the collection used.
      *
      * @param imageBytes  Raw JPEG bytes ready to stream to the client.
      * @param dateTaken   Exact satellite overpass time read from the Sentinel Hub
      *                    Catalogue API ({@code features[0].properties.datetime}).
      *                    This is not an estimate — it is the actual capture time
      *                    recorded in the STAC metadata.
+     * @param collection  The satellite collection used for the image.
      */
-    public record SatelliteImageResult(byte[] imageBytes, Instant dateTaken) {}
+    public record SatelliteImageResult(byte[] imageBytes, Instant dateTaken, Collection collection) {}
+
+    // =========================================================================
+    //  Private helper types
+    // =========================================================================
+
+    private record SceneInfo(Instant dateTaken, Collection collection) {}
 
     // =========================================================================
     //  Public API
@@ -115,14 +127,14 @@ public class SatelliteService {
         log.info("Access token obtained");
 
         // Step 2 — ask the catalogue for the exact overpass time of the latest scene
-        Instant dateTaken = fetchLatestSceneDate(token);
-        log.info("Catalogue confirmed scene date: {}", dateTaken);
+        SceneInfo sceneInfo = fetchLatestSceneDate(token);
+        log.info("Catalogue confirmed scene date: {}", sceneInfo.dateTaken());
 
         // Step 3 — fetch the image pinned to that scene's calendar day
-        byte[] imageBytes = fetchImage(token, dateTaken);
+        byte[] imageBytes = fetchImage(token, sceneInfo.dateTaken());
         log.info("Image received ({} bytes)", imageBytes.length);
 
-        return new SatelliteImageResult(imageBytes, dateTaken);
+        return new SatelliteImageResult(imageBytes, sceneInfo.dateTaken(), sceneInfo.collection());
     }
 
     // =========================================================================
@@ -176,9 +188,9 @@ public class SatelliteService {
      * it directly into an {@link Instant}.
      *
      * @param token OAuth2 bearer token
-     * @return the verified scene capture {@link Instant}
+     * @return the verified scene capture {@link SceneInfo}
      */
-    private Instant fetchLatestSceneDate(String token) {
+    private SceneInfo fetchLatestSceneDate(String token) {
         Instant now  = Instant.now();
         Instant from = now.minus(CATALOGUE_LOOKBACK_DAYS, ChronoUnit.DAYS);
 
@@ -251,6 +263,18 @@ public class SatelliteService {
                     + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
         }
 
+        String collectionId = bestFeature.path("collection").asText();
+        if (collectionId == null || collectionId.isBlank()) {
+            throw new RuntimeException("Catalogue feature is missing collection — raw feature: " + bestFeature);
+        }
+
+        // Map collection ID to display name (hardcoded for now)
+        String displayName = switch (collectionId) {
+            case "sentinel-2-l2a" -> "Sentinel-2 L2A (10 m)";
+            default -> collectionId; // fallback
+        };
+        Collection collection = new Collection(collectionId, displayName);
+
         String datetimeStr = bestFeature
                 .path("properties")
                 .path("datetime")
@@ -263,7 +287,8 @@ public class SatelliteService {
         }
 
         log.info("Catalogue properties.datetime = {}", datetimeStr);
-        return Instant.parse(datetimeStr);  // e.g. "2026-03-18T08:42:11Z"
+        Instant dateTaken = Instant.parse(datetimeStr);  // e.g. "2026-03-18T08:42:11Z"
+        return new SceneInfo(dateTaken, collection);
     }
 
     // =========================================================================

@@ -45,6 +45,12 @@ public class SatelliteController {
      */
     private static final String HEADER_IMAGE_DATE = "X-Image-Date";
 
+    /**
+     * Response header carrying the satellite collection name used for the image.
+     * Format: human-readable label like "Sentinel-2 L2A (10 m)".
+     */
+    private static final String HEADER_IMAGE_COLLECTION = "X-Image-Collection";
+
     private final SatelliteService satelliteService;
 
     public SatelliteController(SatelliteService satelliteService) {
@@ -71,6 +77,8 @@ public class SatelliteController {
                     .header("Content-Disposition", "inline; filename=\"satellite.jpg\"")
                     // Exact capture datetime from the Sentinel Hub catalogue
                     .header(HEADER_IMAGE_DATE, result.dateTaken().toString())
+                    // Satellite collection source used to pick the best image
+                    .header(HEADER_IMAGE_COLLECTION, result.collection().displayName())
                     .body(result.imageBytes());
 
         } catch (Exception ex) {
