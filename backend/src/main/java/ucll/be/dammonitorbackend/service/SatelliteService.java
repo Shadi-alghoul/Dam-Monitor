@@ -20,16 +20,16 @@ import org.springframework.web.reactive.function.client.WebClient;
  *
  * Three-step flow:
  *
- *   1. OAuth2       — obtains a bearer token via client credentials.
+ * 1. OAuth2 — obtains a bearer token via client credentials.
  *
- *   2. Catalogue API — queries the Sentinel Hub STAC catalogue for the most
- *                      recent Sentinel-2 L2A scene over Hartbeespoort Dam with
- *                      ≤ 20 % cloud cover.  Reads the exact capture datetime
- *                      directly from {@code properties.datetime} in the response.
+ * 2. Catalogue API — queries the Sentinel Hub STAC catalogue for the most
+ * recent Sentinel-2 L2A scene over Hartbeespoort Dam with
+ * ≤ 20 % cloud cover. Reads the exact capture datetime
+ * directly from {@code properties.datetime} in the response.
  *
- *   3. Process API  — fetches a true-colour JPEG, with the time window pinned to
- *                      the 24-hour day of the verified scene date so that the
- *                      image and the date are guaranteed to match.
+ * 3. Process API — fetches a true-colour JPEG, with the time window pinned to
+ * the 24-hour day of the verified scene date so that the
+ * image and the date are guaranteed to match.
  *
  * The result is a {@link SatelliteImageResult} whose {@code dateTaken} field
  * is sourced from the catalogue — it is the real satellite overpass time,
@@ -54,21 +54,23 @@ public class SatelliteService {
     @Value("${sentinel.hub.process-url}")
     private String processUrl;
 
-    /** Added to application.properties:
-     *  sentinel.hub.catalogue-url=https://services.sentinel-hub.com/api/v1/catalog/1.0.0/search */
+    /**
+     * Added to application.properties:
+     * sentinel.hub.catalogue-url=https://services.sentinel-hub.com/api/v1/catalog/1.0.0/search
+     */
     @Value("${sentinel.hub.catalogue-url}")
     private String catalogueUrl;
 
     // ── Hartbeespoort Dam bounding box (WGS84 lon/lat) ───────────────────────
 
-    private static final double BBOX_MIN_LON =  27.78822;
+    private static final double BBOX_MIN_LON = 27.78822;
     private static final double BBOX_MIN_LAT = -25.77346;
-    private static final double BBOX_MAX_LON =  27.907053;
+    private static final double BBOX_MAX_LON = 27.907053;
     private static final double BBOX_MAX_LAT = -25.723519;
 
     // ── Output image dimensions ───────────────────────────────────────────────
 
-    private static final int IMAGE_WIDTH  = 1920;
+    private static final int IMAGE_WIDTH = 1920;
     private static final int IMAGE_HEIGHT = 1080;
 
     // ── Catalogue lookback window ─────────────────────────────────────────────
@@ -82,34 +84,37 @@ public class SatelliteService {
     }
 
     // =========================================================================
-    //  Public result type
+    // Public result type
     // =========================================================================
 
     /**
      * Represents a satellite collection with its ID and display name.
      */
-    public record Collection(String id, String displayName) {}
+    public record Collection(String id, String displayName) {
+    }
 
     /**
      * Carries the image, its verified capture date, and the collection used.
      *
-     * @param imageBytes  Raw JPEG bytes ready to stream to the client.
-     * @param dateTaken   Exact satellite overpass time read from the Sentinel Hub
-     *                    Catalogue API ({@code features[0].properties.datetime}).
-     *                    This is not an estimate — it is the actual capture time
-     *                    recorded in the STAC metadata.
-     * @param collection  The satellite collection used for the image.
+     * @param imageBytes Raw JPEG bytes ready to stream to the client.
+     * @param dateTaken  Exact satellite overpass time read from the Sentinel Hub
+     *                   Catalogue API ({@code features[0].properties.datetime}).
+     *                   This is not an estimate — it is the actual capture time
+     *                   recorded in the STAC metadata.
+     * @param collection The satellite collection used for the image.
      */
-    public record SatelliteImageResult(byte[] imageBytes, Instant dateTaken, Collection collection) {}
+    public record SatelliteImageResult(byte[] imageBytes, Instant dateTaken, Collection collection) {
+    }
 
     // =========================================================================
-    //  Private helper types
+    // Private helper types
     // =========================================================================
 
-    private record SceneInfo(Instant dateTaken, Collection collection) {}
+    private record SceneInfo(Instant dateTaken, Collection collection) {
+    }
 
     // =========================================================================
-    //  Public API
+    // Public API
     // =========================================================================
 
     /**
@@ -117,7 +122,8 @@ public class SatelliteService {
      * together with its exact, catalogue-verified capture date.
      *
      * @return {@link SatelliteImageResult}
-     * @throws RuntimeException on auth failure, no scenes found, or image fetch error
+     * @throws RuntimeException on auth failure, no scenes found, or image fetch
+     *                          error
      */
     public SatelliteImageResult fetchSatelliteImage() {
         log.info("Fetching Sentinel-2 image for Hartbeespoort Dam");
@@ -138,13 +144,13 @@ public class SatelliteService {
     }
 
     // =========================================================================
-    //  Step 1 — OAuth2 client-credentials token
+    // Step 1 — OAuth2 client-credentials token
     // =========================================================================
 
     private String fetchAccessToken() {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type",    "client_credentials");
-        form.add("client_id",     clientId);
+        form.add("grant_type", "client_credentials");
+        form.add("client_id", clientId);
         form.add("client_secret", clientSecret);
 
         JsonNode resp = webClient.post()
@@ -157,8 +163,7 @@ public class SatelliteService {
                         r -> r.bodyToMono(String.class).map(body -> {
                             log.error("Token request failed: {} — {}", r.statusCode(), body);
                             return new RuntimeException("Token failed: " + body);
-                        })
-                )
+                        }))
                 .bodyToMono(JsonNode.class)
                 .block();
 
@@ -169,16 +174,16 @@ public class SatelliteService {
     }
 
     // =========================================================================
-    //  Step 2 — Catalogue API: resolve the exact capture datetime
+    // Step 2 — Catalogue API: resolve the exact capture datetime
     // =========================================================================
 
     /**
      * Calls the Sentinel Hub STAC Catalogue ({@code /catalog/1.0.0/search}) to
      * find the single most recent Sentinel-2 L2A scene that:
      * <ul>
-     *   <li>intersects the Hartbeespoort Dam bounding box</li>
-     *   <li>has ≤ 20 % cloud cover ({@code eo:cloud_cover})</li>
-     *   <li>was captured within the last {@value #CATALOGUE_LOOKBACK_DAYS} days</li>
+     * <li>intersects the Hartbeespoort Dam bounding box</li>
+     * <li>has ≤ 20 % cloud cover ({@code eo:cloud_cover})</li>
+     * <li>was captured within the last {@value #CATALOGUE_LOOKBACK_DAYS} days</li>
      * </ul>
      *
      * The catalogue response is a GeoJSON FeatureCollection. We retrieve
@@ -191,10 +196,12 @@ public class SatelliteService {
      * @return the verified scene capture {@link SceneInfo}
      */
     private SceneInfo fetchLatestSceneDate(String token) {
-        Instant now  = Instant.now();
+        Instant now = Instant.now();
         Instant from = now.minus(CATALOGUE_LOOKBACK_DAYS, ChronoUnit.DAYS);
-
-        String catalogueBody = String.format("""
+        // Basically, I fixed locale formatting issue, bcoz some windows locales use
+        // comma instead of dots, and that breaks the JSON. Now it forces all systems to
+        // use dots.
+        String catalogueBody = String.format(java.util.Locale.ROOT, """
                 {
                   "collections": ["sentinel-2-l2a"],
                   "bbox": [%f, %f, %f, %f],
@@ -203,8 +210,7 @@ public class SatelliteService {
                 }
                 """,
                 BBOX_MIN_LON, BBOX_MIN_LAT, BBOX_MAX_LON, BBOX_MAX_LAT,
-                from.toString(), now.toString()
-        );
+                from.toString(), now.toString());
 
         log.debug("Catalogue request:\n{}", catalogueBody);
 
@@ -220,8 +226,7 @@ public class SatelliteService {
                         r -> r.bodyToMono(String.class).map(body -> {
                             log.error("Catalogue API failed: {} — {}", r.statusCode(), body);
                             return new RuntimeException("Catalogue API failed: " + body);
-                        })
-                )
+                        }))
                 .bodyToMono(JsonNode.class)
                 .block();
 
@@ -234,19 +239,19 @@ public class SatelliteService {
         if (!features.isArray() || features.isEmpty()) {
             throw new RuntimeException(
                     "No Sentinel-2 scenes found in the last " + CATALOGUE_LOOKBACK_DAYS
-                    + " days over Hartbeespoort Dam. "
-                    + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
+                            + " days over Hartbeespoort Dam. "
+                            + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
         }
 
         // Filter for cloud cover <= 20% and find the most recent
         JsonNode bestFeature = null;
         Instant bestDate = null;
-        
+
         for (JsonNode feature : features) {
             JsonNode properties = feature.path("properties");
             double cloudCover = properties.path("eo:cloud_cover").asDouble(100.0);
             String datetimeStr = properties.path("datetime").asText(null);
-            
+
             if (datetimeStr != null && cloudCover <= 20.0) {
                 Instant date = Instant.parse(datetimeStr);
                 if (bestDate == null || date.isAfter(bestDate)) {
@@ -255,12 +260,12 @@ public class SatelliteService {
                 }
             }
         }
-        
+
         if (bestFeature == null) {
             throw new RuntimeException(
                     "No Sentinel-2 scenes found in the last " + CATALOGUE_LOOKBACK_DAYS
-                    + " days with ≤ 20 % cloud cover over Hartbeespoort Dam. "
-                    + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
+                            + " days with ≤ 20 % cloud cover over Hartbeespoort Dam. "
+                            + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
         }
 
         String collectionId = bestFeature.path("collection").asText();
@@ -283,16 +288,16 @@ public class SatelliteService {
         if (datetimeStr == null || datetimeStr.isBlank()) {
             throw new RuntimeException(
                     "Catalogue feature is missing properties.datetime — "
-                    + "raw feature: " + bestFeature);
+                            + "raw feature: " + bestFeature);
         }
 
         log.info("Catalogue properties.datetime = {}", datetimeStr);
-        Instant dateTaken = Instant.parse(datetimeStr);  // e.g. "2026-03-18T08:42:11Z"
+        Instant dateTaken = Instant.parse(datetimeStr); // e.g. "2026-03-18T08:42:11Z"
         return new SceneInfo(dateTaken, collection);
     }
 
     // =========================================================================
-    //  Step 3 — Process API: fetch the image pinned to the verified scene date
+    // Step 3 — Process API: fetch the image pinned to the verified scene date
     // =========================================================================
 
     /**
@@ -309,7 +314,7 @@ public class SatelliteService {
     private byte[] fetchImage(String token, Instant dateTaken) {
         // Pin to the calendar day of the exact scene — midnight UTC to midnight UTC
         Instant windowStart = dateTaken.truncatedTo(ChronoUnit.DAYS);
-        Instant windowEnd   = windowStart.plus(1, ChronoUnit.DAYS);
+        Instant windowEnd = windowStart.plus(1, ChronoUnit.DAYS);
 
         String requestBody = buildProcessRequestBody(windowStart, windowEnd);
         log.debug("Process API request:\n{}", requestBody);
@@ -326,8 +331,7 @@ public class SatelliteService {
                         r -> r.bodyToMono(String.class).map(b -> {
                             log.error("Process API failed: {} — {}", r.statusCode(), b);
                             return new RuntimeException("Process API failed: " + b);
-                        })
-                )
+                        }))
                 .bodyToMono(byte[].class)
                 .block();
 
@@ -338,50 +342,50 @@ public class SatelliteService {
     }
 
     // =========================================================================
-    //  Process API request body
+    // Process API request body
     // =========================================================================
 
     /**
      * Builds the JSON payload for the Sentinel Hub Process API.
      *
      * Evalscript: true-colour composite —
-     *   B04 (red), B03 (green), B02 (blue), scaled ×2.5 for visual brightness.
+     * B04 (red), B03 (green), B02 (blue), scaled ×2.5 for visual brightness.
      *
      * @param from window start (00:00:00 UTC of the scene's calendar day)
-     * @param to   window end   (00:00:00 UTC of the following day)
+     * @param to   window end (00:00:00 UTC of the following day)
      */
     private String buildProcessRequestBody(Instant from, Instant to) {
-        return String.format("""
-                {
-                  "input": {
-                    "bounds": {
-                      "bbox": [%f, %f, %f, %f]
-                    },
-                    "data": [{
-                      "type": "sentinel-2-l2a",
-                      "dataFilter": {
-                        "timeRange": {
-                          "from": "%s",
-                          "to":   "%s"
-                        },
-                        "maxCloudCoverage": 20
-                      }
-                    }]
-                  },
-                  "output": {
-                    "width":  %d,
-                    "height": %d,
-                    "responses": [{
-                      "identifier": "default",
-                      "format": { "type": "image/jpeg" }
-                    }]
-                  },
-                  "evalscript": "//VERSION=3\\nfunction setup() {\\n  return {\\n    input: [\\"B02\\", \\"B03\\", \\"B04\\"],\\n    output: { bands: 3 }\\n  };\\n}\\nfunction evaluatePixel(sample) {\\n  return [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02];\\n}"
-                }
-                """,
+        return String.format(
+                """
+                        {
+                          "input": {
+                            "bounds": {
+                              "bbox": [%f, %f, %f, %f]
+                            },
+                            "data": [{
+                              "type": "sentinel-2-l2a",
+                              "dataFilter": {
+                                "timeRange": {
+                                  "from": "%s",
+                                  "to":   "%s"
+                                },
+                                "maxCloudCoverage": 20
+                              }
+                            }]
+                          },
+                          "output": {
+                            "width":  %d,
+                            "height": %d,
+                            "responses": [{
+                              "identifier": "default",
+                              "format": { "type": "image/jpeg" }
+                            }]
+                          },
+                          "evalscript": "//VERSION=3\\nfunction setup() {\\n  return {\\n    input: [\\"B02\\", \\"B03\\", \\"B04\\"],\\n    output: { bands: 3 }\\n  };\\n}\\nfunction evaluatePixel(sample) {\\n  return [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02];\\n}"
+                        }
+                        """,
                 BBOX_MIN_LON, BBOX_MIN_LAT, BBOX_MAX_LON, BBOX_MAX_LAT,
                 from.toString(), to.toString(),
-                IMAGE_WIDTH, IMAGE_HEIGHT
-        );
+                IMAGE_WIDTH, IMAGE_HEIGHT);
     }
 }
