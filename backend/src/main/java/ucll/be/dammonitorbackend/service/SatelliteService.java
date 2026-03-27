@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -194,7 +195,7 @@ public class SatelliteService {
         Instant now  = Instant.now();
         Instant from = now.minus(CATALOGUE_LOOKBACK_DAYS, ChronoUnit.DAYS);
 
-        String catalogueBody = String.format("""
+        String catalogueBody = String.format(Locale.US,"""
                 {
                   "collections": ["sentinel-2-l2a"],
                   "bbox": [%f, %f, %f, %f],
@@ -351,7 +352,7 @@ public class SatelliteService {
      * @param to   window end   (00:00:00 UTC of the following day)
      */
     private String buildProcessRequestBody(Instant from, Instant to) {
-        return String.format("""
+        return String.format(Locale.US,"""
                 {
                   "input": {
                     "bounds": {
