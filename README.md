@@ -67,4 +67,4 @@ Or register a new account.
 ## Stack
 
 **Backend:** Spring Boot 3.4.3, Spring Security, Hibernate, PostgreSQL (H2 console for admin UI)  
-**Frontend:** React 19, TypeScript, Vite, React Router
+**Frontend:** Vite, TypeScript, React components, React Router
