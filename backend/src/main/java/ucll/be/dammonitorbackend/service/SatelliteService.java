@@ -356,7 +356,7 @@ public class SatelliteService {
      * @param to   window end (00:00:00 UTC of the following day)
      */
     private String buildProcessRequestBody(Instant from, Instant to) {
-        return String.format(
+        return String.format(java.util.Locale.ROOT,
                 """
                         {
                           "input": {
