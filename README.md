@@ -1,6 +1,6 @@
 # Dam Monitor
 
-Satellite imaging monitoring app. Spring Boot backend + React frontend.
+Satellite imaging monitoring app. Spring Boot backend + Vite frontend.
 
 ## Quick Start
 
