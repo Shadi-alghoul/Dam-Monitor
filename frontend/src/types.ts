@@ -20,4 +20,8 @@ export type EnvironmentalReport = {
   createdAt: string;
   satelliteImageUrl?: string;
   satelliteTakenAt?: string;
+  latitude?: number;
+  longitude?: number;
+  pixelX?: number;
+  pixelY?: number;
 };

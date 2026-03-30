@@ -36,14 +36,32 @@ public class ReportController {
             @RequestParam("description") String description,
             @RequestParam("problemType") ProblemType problemType,
             @RequestParam(value = "satelliteImageUrl", required = false) String satelliteImageUrl,
-            @RequestParam(value = "satelliteTakenAt", required = false) String satelliteTakenAt) {
+            @RequestParam(value = "satelliteTakenAt",  required = false) String satelliteTakenAt,
+            // --- Map location fields (all optional; lat + lon must be paired) ---
+            @RequestParam(value = "latitude",  required = false) Double latitude,
+            @RequestParam(value = "longitude", required = false) Double longitude,
+            @RequestParam(value = "pixelX",    required = false) Integer pixelX,
+            @RequestParam(value = "pixelY",    required = false) Integer pixelY) {
+
         try {
             Instant satelliteTakenAtInstant = null;
             if (satelliteTakenAt != null && !satelliteTakenAt.trim().isEmpty()) {
                 satelliteTakenAtInstant = Instant.parse(satelliteTakenAt);
             }
-            EnvironmentalReport saved = reportService.createReport(file, description, problemType, satelliteImageUrl, satelliteTakenAtInstant);
+
+            EnvironmentalReport saved = reportService.createReport(
+                    file,
+                    description,
+                    problemType,
+                    satelliteImageUrl,
+                    satelliteTakenAtInstant,
+                    latitude,
+                    longitude,
+                    pixelX,
+                    pixelY);
+
             return ResponseEntity.ok(toResponse(saved));
+
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(BAD_REQUEST, ex.getMessage(), ex);
         } catch (IOException ex) {
@@ -68,6 +86,10 @@ public class ReportController {
                 report.getImageUrl(),
                 report.getSatelliteImageUrl(),
                 report.getSatelliteTakenAt(),
+                report.getLatitude(),
+                report.getLongitude(),
+                report.getPixelX(),
+                report.getPixelY(),
                 report.getCreatedAt());
     }
 
@@ -79,6 +101,10 @@ public class ReportController {
             String imageUrl,
             String satelliteImageUrl,
             Instant satelliteTakenAt,
+            Double latitude,
+            Double longitude,
+            Integer pixelX,
+            Integer pixelY,
             Instant createdAt) {
     }
 }

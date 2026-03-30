@@ -39,6 +39,18 @@ public class EnvironmentalReport {
     @Column
     private Instant satelliteTakenAt;
 
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
+    @Column
+    private Integer pixelX;
+
+    @Column
+    private Integer pixelY;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -48,7 +60,7 @@ public class EnvironmentalReport {
             createdAt = Instant.now();
         }
     }
-
+    
     public Long getId() {
         return id;
     }
@@ -103,5 +115,37 @@ public class EnvironmentalReport {
 
     public void setSatelliteTakenAt(Instant satelliteTakenAt) {
         this.satelliteTakenAt = satelliteTakenAt;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public Integer getPixelX() {
+        return pixelX;
+    }
+
+    public void setPixelX(Integer pixelX) {
+        this.pixelX = pixelX;
+    }
+
+    public Integer getPixelY() {
+        return pixelY;
+    }
+
+    public void setPixelY(Integer pixelY) {
+        this.pixelY = pixelY;
     }
 }

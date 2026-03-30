@@ -61,20 +61,17 @@ export default function DashboardPage() {
 
   /**
    * Convert pixel coordinates to geographic coordinates (lat/lon)
-   * based on the satellite image bounds and dimensions
+   * based on the satellite image bounds and dimensions.
    */
   const pixelToCoordinates = (pixelX: number, pixelY: number): { lat: number; lon: number } => {
     const { minLon, minLat, maxLon, maxLat, width, height } = HARTBEESPOORT_BOUNDS;
-    
-    // Linear interpolation from pixel space to geographic space
     const lon = minLon + (pixelX / width) * (maxLon - minLon);
     const lat = maxLat - (pixelY / height) * (maxLat - minLat); // Y increases downward in pixels
-    
     return { lat, lon };
   };
 
   /**
-   * Generate Google Maps URL for the selected coordinates
+   * Generate Google Maps URL for the selected coordinates.
    */
   const googleMapsUrl = useMemo(() => {
     if (!selectedCoordinates) return null;
@@ -205,8 +202,7 @@ export default function DashboardPage() {
     const pixelY = Math.max(0, Math.min(naturalHeight - 1, Math.floor((yInsideVisible / visibleHeight) * naturalHeight)));
 
     setSelectedSatellitePixel({ x: pixelX, y: pixelY });
-    
-    // Convert pixel coordinates to geographic coordinates
+
     const coords = pixelToCoordinates(pixelX, pixelY);
     setSelectedCoordinates(coords);
   }
@@ -232,7 +228,12 @@ export default function DashboardPage() {
         description,
         problemType,
         satelliteImageUrl: satelliteImageSrc || undefined,
-        satelliteTakenAt: satelliteTakenAt || undefined
+        satelliteTakenAt: satelliteTakenAt || undefined,
+        // Pass the clicked map location — undefined when the user hasn't clicked yet
+        latitude: selectedCoordinates?.lat,
+        longitude: selectedCoordinates?.lon,
+        pixelX: selectedSatellitePixel?.x,
+        pixelY: selectedSatellitePixel?.y
       });
       setReports((prev) => [created, ...prev]);
       setSelectedFile(null);
@@ -283,9 +284,9 @@ export default function DashboardPage() {
                   Coordinates: {selectedCoordinates.lat.toFixed(6)}, {selectedCoordinates.lon.toFixed(6)}
                 </p>
                 <p className="satellite-meta">
-                  <a 
-                    href={googleMapsUrl!} 
-                    target="_blank" 
+                  <a
+                    href={googleMapsUrl!}
+                    target="_blank"
                     rel="noopener noreferrer"
                     style={{ color: "#0066cc", textDecoration: "underline" }}
                   >
@@ -296,7 +297,7 @@ export default function DashboardPage() {
             )}
           </>
         ) : (
-          <p className="satellite-meta">Click the image to inspect a pixel.</p>
+          <p className="satellite-meta">Click the image to select a location for your report.</p>
         )}
         {loadingSatellite ? <p className="satellite-meta">Loading live image...</p> : null}
         {satelliteLoadError ? <p className="form-error">{satelliteLoadError}</p> : null}
@@ -318,6 +319,13 @@ export default function DashboardPage() {
 
       <section className="panel">
         <h2>Report environmental issue</h2>
+
+        {/* Nudge the user to pick a location before submitting */}
+        {!selectedCoordinates && (
+          <p className="satellite-meta" style={{ color: "#fbbf24" }}>
+            ⚠ Click the satellite image above to pin a location before submitting.
+          </p>
+        )}
 
         <form className="report-form" onSubmit={onReportSubmit}>
           <label>
@@ -360,6 +368,14 @@ export default function DashboardPage() {
             />
           </label>
 
+          {/* Show the pinned location summary inside the form */}
+          {selectedCoordinates && selectedSatellitePixel && (
+            <p className="satellite-meta highlight" style={{ fontSize: "0.85rem" }}>
+              📍 Pinned: pixel ({selectedSatellitePixel.x}, {selectedSatellitePixel.y}) →{" "}
+              {selectedCoordinates.lat.toFixed(6)}, {selectedCoordinates.lon.toFixed(6)}
+            </p>
+          )}
+
           <button type="submit" disabled={submitting}>
             {submitting ? "Submitting..." : "Submit report"}
           </button>
@@ -382,6 +398,11 @@ export default function DashboardPage() {
               <img src={report.imageUrl} alt={report.problemType} loading="lazy" />
               <p className="report-type">{report.problemType.replaceAll("_", " ")}</p>
               <p className="report-description">{report.description}</p>
+              {report.latitude != null && report.longitude != null && (
+                <p className="report-meta">
+                  📍 {report.latitude.toFixed(5)}, {report.longitude.toFixed(5)}
+                </p>
+              )}
               {report.satelliteTakenAt && (
                 <p className="report-meta">Satellite image: {new Date(report.satelliteTakenAt).toLocaleString()}</p>
               )}

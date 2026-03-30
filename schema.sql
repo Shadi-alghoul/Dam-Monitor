@@ -90,16 +90,18 @@ CREATE TABLE reports (
     user_id         UUID NOT NULL REFERENCES users (id) ON DELETE SET NULL,
     zone_id         INTEGER REFERENCES dam_zones (id) ON DELETE SET NULL,
 
-    -- Location
-    latitude        DOUBLE PRECISION NOT NULL
-                        CHECK (latitude  BETWEEN -90  AND 90),
-    longitude       DOUBLE PRECISION NOT NULL
-                        CHECK (longitude BETWEEN -180 AND 180),
-    location        GEOMETRY(POINT, 4326)           -- PostGIS point, auto-populated via trigger
+    -- Geographic coordinates (nullable — supplied when user clicks the map)
+    latitude        DOUBLE PRECISION
+                        CHECK (latitude  IS NULL OR latitude  BETWEEN -90  AND 90),
+    longitude       DOUBLE PRECISION
+                        CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
 
-                        GENERATED ALWAYS AS (
-                            ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
-                        ) STORED,
+    -- Map pixel coordinates of the clicked location
+    -- These are the raw pixel (x, y) values from the frontend map image/canvas
+    pixel_x         INTEGER,
+    pixel_y         INTEGER,
+
+    location        GEOMETRY(POINT, 4326),          -- PostGIS point, populated via trigger
 
     -- Content
     description     TEXT,
@@ -242,18 +244,24 @@ CREATE TRIGGER trg_reports_updated_at
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================
---  AUTO-ASSIGN ZONE FROM COORDINATES TRIGGER
---  When a report is inserted, find which dam_zone contains
---  the report's coordinates and set zone_id automatically.
+--  AUTO-ASSIGN ZONE + POPULATE location POINT TRIGGER
+--  When a report is inserted with lat/lon, derive the PostGIS
+--  point and find the containing dam_zone automatically.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION assign_zone_to_report()
 RETURNS TRIGGER AS $$
 BEGIN
-    SELECT id INTO NEW.zone_id
-    FROM   dam_zones
-    WHERE  ST_Contains(boundary, ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326))
-    LIMIT  1;
+    -- Build the PostGIS point from lat/lon when both are provided
+    IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+        NEW.location = ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326);
+
+        SELECT id INTO NEW.zone_id
+        FROM   dam_zones
+        WHERE  ST_Contains(boundary, NEW.location)
+        LIMIT  1;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
