@@ -17,6 +17,8 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const user = getCurrentUser();
   const [cacheBuster, setCacheBuster] = useState(Date.now());
+  const [satelliteResolution, setSatelliteResolution] = useState<{ width: number; height: number } | null>(null);
+  const [selectedSatellitePixel, setSelectedSatellitePixel] = useState<{ x: number; y: number } | null>(null);
   const [satelliteImageSrc, setSatelliteImageSrc] = useState<string | null>(null);
   const [satelliteTakenAt, setSatelliteTakenAt] = useState<string | null>(null);
   const [satelliteCollection, setSatelliteCollection] = useState<string | null>(null);
@@ -128,7 +130,41 @@ export default function DashboardPage() {
 
   function refreshSatelliteImage() {
     setSatelliteLoadError(null);
+    setSelectedSatellitePixel(null);
     setCacheBuster(Date.now());
+  }
+
+  function onSatelliteImageClick(event: React.MouseEvent<HTMLImageElement>) {
+    const imageElement = event.currentTarget;
+    const naturalWidth = imageElement.naturalWidth;
+    const naturalHeight = imageElement.naturalHeight;
+
+    if (!naturalWidth || !naturalHeight) {
+      return;
+    }
+
+    const bounds = imageElement.getBoundingClientRect();
+    const renderedWidth = bounds.width;
+    const renderedHeight = bounds.height;
+    const scale = Math.min(renderedWidth / naturalWidth, renderedHeight / naturalHeight);
+    const visibleWidth = naturalWidth * scale;
+    const visibleHeight = naturalHeight * scale;
+    const offsetX = (renderedWidth - visibleWidth) / 2;
+    const offsetY = (renderedHeight - visibleHeight) / 2;
+
+    const clickX = event.clientX - bounds.left;
+    const clickY = event.clientY - bounds.top;
+    const xInsideVisible = clickX - offsetX;
+    const yInsideVisible = clickY - offsetY;
+
+    if (xInsideVisible < 0 || yInsideVisible < 0 || xInsideVisible > visibleWidth || yInsideVisible > visibleHeight) {
+      return;
+    }
+
+    const pixelX = Math.max(0, Math.min(naturalWidth - 1, Math.floor((xInsideVisible / visibleWidth) * naturalWidth)));
+    const pixelY = Math.max(0, Math.min(naturalHeight - 1, Math.floor((yInsideVisible / visibleHeight) * naturalHeight)));
+
+    setSelectedSatellitePixel({ x: pixelX, y: pixelY });
   }
 
   async function onReportSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -187,12 +223,29 @@ export default function DashboardPage() {
         <h2>Live satellite snapshot</h2>
         <p className="satellite-meta">{takenAtLabel}</p>
         {satelliteCollection ? <p className="satellite-meta">Satellite source: {satelliteCollection}</p> : null}
+        {satelliteResolution ? (
+          <p className="satellite-meta">
+            Resolution: {satelliteResolution.width} x {satelliteResolution.height}
+          </p>
+        ) : null}
+        {selectedSatellitePixel ? (
+          <p className="satellite-meta highlight">
+            Selected pixel: ({selectedSatellitePixel.x}, {selectedSatellitePixel.y})
+          </p>
+        ) : (
+          <p className="satellite-meta">Click the image to inspect a pixel.</p>
+        )}
         {loadingSatellite ? <p className="satellite-meta">Loading live image...</p> : null}
         {satelliteLoadError ? <p className="form-error">{satelliteLoadError}</p> : null}
         <img
           className="hero-image"
           src={satelliteImageSrc ?? ""}
           alt="Live satellite imagery"
+          onClick={onSatelliteImageClick}
+          onLoad={(event) => {
+            const imageElement = event.currentTarget;
+            setSatelliteResolution({ width: imageElement.naturalWidth, height: imageElement.naturalHeight });
+          }}
           onError={(event) => {
             event.currentTarget.alt = "Unable to load live satellite image";
             setSatelliteLoadError("Unable to load live satellite image.");
