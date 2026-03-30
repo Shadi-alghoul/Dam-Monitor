@@ -13,12 +13,23 @@ const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
   { value: "OTHER", label: "Other" }
 ];
 
+// Hartbeespoort Dam satellite image bounds (matching backend SatelliteService)
+const HARTBEESPOORT_BOUNDS = {
+  minLon: 27.78822,
+  minLat: -25.77346,
+  maxLon: 27.907053,
+  maxLat: -25.723519,
+  width: 1920,
+  height: 1080
+};
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const user = getCurrentUser();
   const [cacheBuster, setCacheBuster] = useState(Date.now());
   const [satelliteResolution, setSatelliteResolution] = useState<{ width: number; height: number } | null>(null);
   const [selectedSatellitePixel, setSelectedSatellitePixel] = useState<{ x: number; y: number } | null>(null);
+  const [selectedCoordinates, setSelectedCoordinates] = useState<{ lat: number; lon: number } | null>(null);
   const [satelliteImageSrc, setSatelliteImageSrc] = useState<string | null>(null);
   const [satelliteTakenAt, setSatelliteTakenAt] = useState<string | null>(null);
   const [satelliteCollection, setSatelliteCollection] = useState<string | null>(null);
@@ -47,6 +58,29 @@ export default function DashboardPage() {
 
     return `Image taken: ${parsed.toLocaleString()}`;
   }, [satelliteTakenAt]);
+
+  /**
+   * Convert pixel coordinates to geographic coordinates (lat/lon)
+   * based on the satellite image bounds and dimensions
+   */
+  const pixelToCoordinates = (pixelX: number, pixelY: number): { lat: number; lon: number } => {
+    const { minLon, minLat, maxLon, maxLat, width, height } = HARTBEESPOORT_BOUNDS;
+    
+    // Linear interpolation from pixel space to geographic space
+    const lon = minLon + (pixelX / width) * (maxLon - minLon);
+    const lat = maxLat - (pixelY / height) * (maxLat - minLat); // Y increases downward in pixels
+    
+    return { lat, lon };
+  };
+
+  /**
+   * Generate Google Maps URL for the selected coordinates
+   */
+  const googleMapsUrl = useMemo(() => {
+    if (!selectedCoordinates) return null;
+    const { lat, lon } = selectedCoordinates;
+    return `https://www.google.com/maps?q=${lat.toFixed(6)},${lon.toFixed(6)}&z=14`;
+  }, [selectedCoordinates]);
 
   useEffect(() => {
     let isMounted = true;
@@ -92,6 +126,12 @@ export default function DashboardPage() {
         URL.revokeObjectURL(currentObjectUrl);
       }
     };
+  }, [cacheBuster]);
+
+  // Reset selected coordinates when a new satellite image is loaded
+  useEffect(() => {
+    setSelectedSatellitePixel(null);
+    setSelectedCoordinates(null);
   }, [cacheBuster]);
 
   useEffect(() => {
@@ -165,6 +205,10 @@ export default function DashboardPage() {
     const pixelY = Math.max(0, Math.min(naturalHeight - 1, Math.floor((yInsideVisible / visibleHeight) * naturalHeight)));
 
     setSelectedSatellitePixel({ x: pixelX, y: pixelY });
+    
+    // Convert pixel coordinates to geographic coordinates
+    const coords = pixelToCoordinates(pixelX, pixelY);
+    setSelectedCoordinates(coords);
   }
 
   async function onReportSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -229,9 +273,28 @@ export default function DashboardPage() {
           </p>
         ) : null}
         {selectedSatellitePixel ? (
-          <p className="satellite-meta highlight">
-            Selected pixel: ({selectedSatellitePixel.x}, {selectedSatellitePixel.y})
-          </p>
+          <>
+            <p className="satellite-meta highlight">
+              Selected pixel: ({selectedSatellitePixel.x}, {selectedSatellitePixel.y})
+            </p>
+            {selectedCoordinates && (
+              <>
+                <p className="satellite-meta highlight">
+                  Coordinates: {selectedCoordinates.lat.toFixed(6)}, {selectedCoordinates.lon.toFixed(6)}
+                </p>
+                <p className="satellite-meta">
+                  <a 
+                    href={googleMapsUrl!} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ color: "#0066cc", textDecoration: "underline" }}
+                  >
+                    View in Google Maps →
+                  </a>
+                </p>
+              </>
+            )}
+          </>
         ) : (
           <p className="satellite-meta">Click the image to inspect a pixel.</p>
         )}
