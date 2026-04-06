@@ -274,3 +274,96 @@ textarea:focus {
     transform: translateY(0);
   }
 }
+/* ─────────────────────────────────────────────────────────────────────────
+   Satellite image wrapper + pin overlay
+   Add these rules to your existing stylesheet (e.g. index.css / App.css).
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Wrapper must be positioned so the absolute pin is anchored to it */
+.satellite-image-wrapper {
+  position: relative;
+  display: inline-block; /* shrink-wrap to the rendered image width */
+  width: 100%;            /* or whatever width .hero-image uses */
+  line-height: 0;         /* collapse the gap beneath the img */
+  cursor: crosshair;      /* hint that the image is clickable */
+}
+
+/* The img itself stays unchanged – just make sure it fills the wrapper */
+.satellite-image-wrapper .hero-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Pin ─────────────────────────────────────────────────────────────────── */
+.satellite-pin {
+  position: absolute;
+
+  /*
+   * We want the tip of the pin needle (bottom-centre of the icon) to sit
+   * exactly on the clicked point, so we shift left by half the icon width
+   * and up by the full icon height.
+   */
+  --pin-w: 28px;
+  --pin-h: 42px;
+
+  transform: translate(-50%, -100%);
+  width: var(--pin-w);
+  pointer-events: none;   /* don't intercept future clicks on the image */
+
+  /* Entrance animation – drop in from slightly above */
+  animation: pin-drop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes pin-drop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -130%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
+}
+
+.satellite-pin__icon {
+  width: var(--pin-w);
+  height: var(--pin-h);
+  /* Realistic drop shadow so the pin "floats" above the imagery */
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.55));
+}
+
+/* ── Coordinate tooltip ──────────────────────────────────────────────────── */
+.satellite-pin__label {
+  position: absolute;
+  bottom: calc(var(--pin-h) + 4px); /* sit just above the pin head */
+  left: 50%;
+  transform: translateX(-50%);
+
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 11px;
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+
+  /* Fade in slightly after the pin lands */
+  animation: label-fade-in 0.18s 0.15s ease both;
+  pointer-events: none;
+}
+
+@keyframes label-fade-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);   }
+}
+
+/* ── Clear-pin button (optional, placed beneath the image) ────────────────── */
+.pin-clear-btn {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}

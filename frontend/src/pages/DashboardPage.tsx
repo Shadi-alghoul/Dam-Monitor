@@ -22,6 +22,17 @@ const HARTBEESPOORT_BOUNDS = {
   width: 1920,
   height: 1080
 };
+/** Pixel-accurate position of the pin expressed as percentages of the
+ *  rendered image container so the overlay stays aligned on any resize. */
+interface PinPosition {
+  /** Left offset as a fraction (0–1) of the container width */
+  leftFraction: number;
+  /** Top offset as a fraction (0–1) of the container height */
+  topFraction: number;
+  /** Natural-image pixel coordinates for display */
+  pixelX: number;
+  pixelY: number;
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -45,6 +56,9 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
+  // ── Pin state ────────────────────────────────────────────────────────────
+  const [pinPosition, setPinPosition] = useState<PinPosition | null>(null);
 
   const takenAtLabel = useMemo(() => {
     if (!satelliteTakenAt) {
@@ -168,6 +182,8 @@ export default function DashboardPage() {
   function refreshSatelliteImage() {
     setSatelliteLoadError(null);
     setSelectedSatellitePixel(null);
+    // Clear the pin whenever the image is refreshed
+    setPinPosition(null);
     setCacheBuster(Date.now());
   }
 
@@ -183,6 +199,8 @@ export default function DashboardPage() {
     const bounds = imageElement.getBoundingClientRect();
     const renderedWidth = bounds.width;
     const renderedHeight = bounds.height;
+
+    // object-fit: contain letterbox maths
     const scale = Math.min(renderedWidth / naturalWidth, renderedHeight / naturalHeight);
     const visibleWidth = naturalWidth * scale;
     const visibleHeight = naturalHeight * scale;
@@ -205,6 +223,18 @@ export default function DashboardPage() {
 
     const coords = pixelToCoordinates(pixelX, pixelY);
     setSelectedCoordinates(coords);
+
+    // ── Compute pin position as fractions of the container element ──────
+    // The container wraps the <img> and is the same size as the rendered img.
+    // We store fractions so the pin repositions correctly after any CSS resize.
+    const containerElement = imageElement.parentElement as HTMLElement;
+    const containerBounds = containerElement.getBoundingClientRect();
+
+    const leftFraction = (event.clientX - containerBounds.left) / containerBounds.width;
+    const topFraction = (event.clientY - containerBounds.top) / containerBounds.height;
+
+    // Replace any existing pin with the new position
+    setPinPosition({ leftFraction, topFraction, pixelX, pixelY });
   }
 
   async function onReportSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -275,9 +305,9 @@ export default function DashboardPage() {
         ) : null}
         {selectedSatellitePixel ? (
           <>
-            <p className="satellite-meta highlight">
-              Selected pixel: ({selectedSatellitePixel.x}, {selectedSatellitePixel.y})
-            </p>
+          <p className="satellite-meta highlight">
+            Selected pixel: ({selectedSatellitePixel.x}, {selectedSatellitePixel.y})
+          </p>
             {selectedCoordinates && (
               <>
                 <p className="satellite-meta highlight">
@@ -301,20 +331,70 @@ export default function DashboardPage() {
         )}
         {loadingSatellite ? <p className="satellite-meta">Loading live image...</p> : null}
         {satelliteLoadError ? <p className="form-error">{satelliteLoadError}</p> : null}
-        <img
-          className="hero-image"
-          src={satelliteImageSrc ?? ""}
-          alt="Live satellite imagery"
-          onClick={onSatelliteImageClick}
-          onLoad={(event) => {
-            const imageElement = event.currentTarget;
-            setSatelliteResolution({ width: imageElement.naturalWidth, height: imageElement.naturalHeight });
-          }}
-          onError={(event) => {
-            event.currentTarget.alt = "Unable to load live satellite image";
-            setSatelliteLoadError("Unable to load live satellite image.");
-          }}
-        />
+
+        {/* ── Satellite image wrapper with pin overlay ───────────────────── */}
+        <div className="satellite-image-wrapper">
+          <img
+            className="hero-image"
+            src={satelliteImageSrc ?? ""}
+            alt="Live satellite imagery"
+            onClick={onSatelliteImageClick}
+            onLoad={(event) => {
+              const imageElement = event.currentTarget;
+              setSatelliteResolution({ width: imageElement.naturalWidth, height: imageElement.naturalHeight });
+            }}
+            onError={(event) => {
+              event.currentTarget.alt = "Unable to load live satellite image";
+              setSatelliteLoadError("Unable to load live satellite image.");
+            }}
+          />
+
+          {/* Pin — rendered only when a position has been chosen */}
+          {pinPosition && (
+            <div
+              className="satellite-pin"
+              style={{
+                left: `${pinPosition.leftFraction * 100}%`,
+                top: `${pinPosition.topFraction * 100}%`
+              }}
+              aria-label={`Pin at pixel (${pinPosition.pixelX}, ${pinPosition.pixelY})`}
+            >
+              {/* Drop-shadow SVG pin icon */}
+              <svg
+                className="satellite-pin__icon"
+                viewBox="0 0 24 36"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                {/* Outer shape */}
+                <path
+                  d="M12 0C5.373 0 0 5.373 0 12c0 8.284 10.667 22.628 11.134 23.243a1.1 1.1 0 0 0 1.732 0C13.333 34.628 24 20.284 24 12 24 5.373 18.627 0 12 0z"
+                  fill="#ef4444"
+                />
+                {/* Inner circle */}
+                <circle cx="12" cy="12" r="5" fill="white" />
+              </svg>
+
+              {/* Coordinate tooltip shown just above the pin head */}
+              <span className="satellite-pin__label">
+                {pinPosition.pixelX}, {pinPosition.pixelY}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Dismiss / clear-pin button */}
+        {pinPosition && (
+          <button
+            className="secondary pin-clear-btn"
+            onClick={() => {
+              setPinPosition(null);
+              setSelectedSatellitePixel(null);
+            }}
+          >
+            Clear pin
+          </button>
+        )}
       </section>
 
       <section className="panel">
