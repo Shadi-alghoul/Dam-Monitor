@@ -92,6 +92,9 @@ export default function DashboardPage() {
         x: mx - scale * (mx - p.x),
         y: my - scale * (my - p.y),
       }));
+      if (newZoom == 1) {
+        setPan({ x: 0, y: 0 });
+      }
       return newZoom;
     });
   }
@@ -502,7 +505,7 @@ export default function DashboardPage() {
 
         {/* Controls row */}
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {zoom > 1 && (
+          {zoom >= 1 && (
             <button className="secondary pin-clear-btn" onClick={resetZoom}>
               Reset zoom
             </button>
