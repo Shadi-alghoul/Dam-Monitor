@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchReports, fetchSatelliteSnapshot, uploadReport } from "../lib/api";
+
 import { getCurrentUser, logout } from "../lib/auth";
 import ReportsMapSection from "../components/ReportsMapSection";
 import type { EnvironmentalReport, ProblemType } from "../types";
@@ -60,6 +61,94 @@ export default function DashboardPage() {
 
   // ── Pin state ────────────────────────────────────────────────────────────
   const [pinPosition, setPinPosition] = useState<PinPosition | null>(null);
+
+  // Zoom / pan state
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
+  const touchRef = useRef<{ dist: number; midX: number; midY: number } | null>(null);
+
+  function resetZoom() {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }
+
+  function onWrapperWheel(e: React.WheelEvent<HTMLDivElement>) {
+    
+    e.preventDefault();
+    e.stopPropagation();
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const rect = wrapper.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    setZoom((prevZoom) => {
+      const newZoom = Math.min(8, Math.max(1, prevZoom * factor));
+      const scale = newZoom / prevZoom;
+      setPan((p) => ({
+        x: mx - scale * (mx - p.x),
+        y: my - scale * (my - p.y),
+      }));
+      return newZoom;
+    });
+  }
+
+  function onWrapperMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (zoom <= 1) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    dragStartRef.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y };
+  }
+
+  function onWrapperMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!isDragging || !dragStartRef.current) return;
+    setPan({
+      x: dragStartRef.current.px + (e.clientX - dragStartRef.current.mx),
+      y: dragStartRef.current.py + (e.clientY - dragStartRef.current.my),
+    });
+  }
+
+  function onWrapperMouseUp() {
+    setIsDragging(false);
+    dragStartRef.current = null;
+  }
+
+  function onWrapperTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    if (e.touches.length !== 2) return;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    touchRef.current = {
+      dist: Math.hypot(dx, dy),
+      midX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+      midY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+    };
+  }
+
+  function onWrapperTouchMove(e: React.TouchEvent<HTMLDivElement>) {
+    if (e.touches.length !== 2 || !touchRef.current || !wrapperRef.current) return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const newDist = Math.hypot(dx, dy);
+    const factor = newDist / touchRef.current.dist;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const mx = touchRef.current.midX - rect.left;
+    const my = touchRef.current.midY - rect.top;
+    setZoom((prevZoom) => {
+      const newZoom = Math.min(8, Math.max(1, prevZoom * factor));
+      const scale = newZoom / prevZoom;
+      setPan((p) => ({
+        x: mx - scale * (mx - p.x),
+        y: my - scale * (my - p.y),
+      }));
+      return newZoom;
+    });
+    touchRef.current.dist = newDist;
+  }
 
   const takenAtLabel = useMemo(() => {
     if (!satelliteTakenAt) {
@@ -183,8 +272,8 @@ export default function DashboardPage() {
   function refreshSatelliteImage() {
     setSatelliteLoadError(null);
     setSelectedSatellitePixel(null);
-    // Clear the pin whenever the image is refreshed
     setPinPosition(null);
+    resetZoom();
     setCacheBuster(Date.now());
   }
 
@@ -254,7 +343,7 @@ export default function DashboardPage() {
 
     setSubmitting(true);
     try {
-      const created = await uploadReport({
+      await uploadReport({
         file: selectedFile,
         description,
         problemType,
@@ -266,7 +355,8 @@ export default function DashboardPage() {
         pixelX: selectedSatellitePixel?.x,
         pixelY: selectedSatellitePixel?.y
       });
-      setReports((prev) => [created, ...prev]);
+      const refreshed = await fetchReports();
+      setReports(refreshed);
       setSelectedFile(null);
       setDescription("");
       setProblemType("POLLUTION");
@@ -333,69 +423,102 @@ export default function DashboardPage() {
         {loadingSatellite ? <p className="satellite-meta">Loading live image...</p> : null}
         {satelliteLoadError ? <p className="form-error">{satelliteLoadError}</p> : null}
 
-        {/* ── Satellite image wrapper with pin overlay ───────────────────── */}
-        <div className="satellite-image-wrapper">
-          <img
-            className="hero-image"
-            src={satelliteImageSrc ?? ""}
-            alt="Live satellite imagery"
-            onClick={onSatelliteImageClick}
-            onLoad={(event) => {
-              const imageElement = event.currentTarget;
-              setSatelliteResolution({ width: imageElement.naturalWidth, height: imageElement.naturalHeight });
-            }}
-            onError={(event) => {
-              event.currentTarget.alt = "Unable to load live satellite image";
-              setSatelliteLoadError("Unable to load live satellite image.");
-            }}
-          />
-
-          {/* Pin — rendered only when a position has been chosen */}
-          {pinPosition && (
-            <div
-              className="satellite-pin"
-              style={{
-                left: `${pinPosition.leftFraction * 100}%`,
-                top: `${pinPosition.topFraction * 100}%`
-              }}
-              aria-label={`Pin at pixel (${pinPosition.pixelX}, ${pinPosition.pixelY})`}
-            >
-              {/* Drop-shadow SVG pin icon */}
-              <svg
-                className="satellite-pin__icon"
-                viewBox="0 0 24 36"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                {/* Outer shape */}
-                <path
-                  d="M12 0C5.373 0 0 5.373 0 12c0 8.284 10.667 22.628 11.134 23.243a1.1 1.1 0 0 0 1.732 0C13.333 34.628 24 20.284 24 12 24 5.373 18.627 0 12 0z"
-                  fill="#ef4444"
-                />
-                {/* Inner circle */}
-                <circle cx="12" cy="12" r="5" fill="white" />
-              </svg>
-
-              {/* Coordinate tooltip shown just above the pin head */}
-              <span className="satellite-pin__label">
-                {pinPosition.pixelX}, {pinPosition.pixelY}
-              </span>
-            </div>
+        {/* Zoom hint */}
+        <p className="satellite-meta" style={{ fontSize: "0.78rem", color: "#64748b" }}>
+          Scroll to zoom · Drag to pan when zoomed
+          {zoom > 1 && (
+            <span>
+              {" "}· <strong style={{ color: "#a7f3d0" }}>{Math.round(zoom * 100)}%</strong>
+            </span>
           )}
-        </div>
+        </p>
 
-        {/* Dismiss / clear-pin button */}
-        {pinPosition && (
-          <button
-            className="secondary pin-clear-btn"
-            onClick={() => {
-              setPinPosition(null);
-              setSelectedSatellitePixel(null);
+        {/* Satellite image wrapper with zoom + pin overlay */}
+        <div
+          ref={wrapperRef}
+          className="satellite-image-wrapper"
+          style={{ cursor: isDragging ? "grabbing" : zoom > 1 ? "grab" : "crosshair" }}
+          onWheel={onWrapperWheel}
+          onMouseDown={onWrapperMouseDown}
+          onMouseMove={onWrapperMouseMove}
+          onMouseUp={onWrapperMouseUp}
+          onMouseLeave={onWrapperMouseUp}
+          onTouchStart={onWrapperTouchStart}
+          onTouchMove={onWrapperTouchMove}
+        >
+          {/* Inner div receives the CSS transform — both image and pin scale together */}
+          <div
+            className="satellite-zoom-inner"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: "0 0",
             }}
           >
-            Clear pin
-          </button>
-        )}
+            <img
+              className="hero-image"
+              src={satelliteImageSrc ?? ""}
+              alt="Live satellite imagery"
+              draggable={false}
+              onClick={isDragging ? undefined : onSatelliteImageClick}
+              onLoad={(event) => {
+                const imageElement = event.currentTarget;
+                setSatelliteResolution({ width: imageElement.naturalWidth, height: imageElement.naturalHeight });
+              }}
+              onError={(event) => {
+                event.currentTarget.alt = "Unable to load live satellite image";
+                setSatelliteLoadError("Unable to load live satellite image.");
+              }}
+            />
+
+            {/* Pin lives inside the zoom container so it moves with the image */}
+            {pinPosition && (
+              <div
+                className="satellite-pin"
+                style={{
+                  left: `${pinPosition.leftFraction * 100}%`,
+                  top: `${pinPosition.topFraction * 100}%`,
+                }}
+                aria-label={`Pin at pixel (${pinPosition.pixelX}, ${pinPosition.pixelY})`}
+              >
+                <svg
+                  className="satellite-pin__icon"
+                  viewBox="0 0 24 36"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 0C5.373 0 0 5.373 0 12c0 8.284 10.667 22.628 11.134 23.243a1.1 1.1 0 0 0 1.732 0C13.333 34.628 24 20.284 24 12 24 5.373 18.627 0 12 0z"
+                    fill="#ef4444"
+                  />
+                  <circle cx="12" cy="12" r="5" fill="white" />
+                </svg>
+                <span className="satellite-pin__label">
+                  {pinPosition.pixelX}, {pinPosition.pixelY}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Controls row */}
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          {zoom > 1 && (
+            <button className="secondary pin-clear-btn" onClick={resetZoom}>
+              Reset zoom
+            </button>
+          )}
+          {pinPosition && (
+            <button
+              className="secondary pin-clear-btn"
+              onClick={() => {
+                setPinPosition(null);
+                setSelectedSatellitePixel(null);
+              }}
+            >
+              Clear pin
+            </button>
+          )}
+        </div>
       </section>
 
       <section className="panel">

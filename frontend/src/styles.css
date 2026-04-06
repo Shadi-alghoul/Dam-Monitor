@@ -483,3 +483,23 @@ textarea:focus {
     height: 320px;
   }
 }
+
+/* ── Satellite zoom inner container ───────────────────────────────────── */
+.satellite-image-wrapper {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.satellite-zoom-inner {
+  position: relative;
+  will-change: transform;
+  touch-action: none;
+  line-height: 0;
+}
+
+/* When zoomed, hero-image can be natural height inside the transform */
+.satellite-zoom-inner .hero-image {
+  cursor: inherit;
+}
