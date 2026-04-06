@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchReports, fetchSatelliteSnapshot, uploadReport } from "../lib/api";
 import { getCurrentUser, logout } from "../lib/auth";
+import ReportsMapSection from "../components/ReportsMapSection";
 import type { EnvironmentalReport, ProblemType } from "../types";
 
 const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
@@ -464,6 +465,9 @@ export default function DashboardPage() {
           {uploadSuccess ? <p className="form-success">{uploadSuccess}</p> : null}
         </form>
       </section>
+
+      {/* ── Map section: shows all geo-tagged reports as coloured pins ─────── */}
+      <ReportsMapSection reports={reports} />
 
       <section className="panel">
         <h2>Community reports</h2>
