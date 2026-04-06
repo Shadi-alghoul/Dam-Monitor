@@ -28,18 +28,26 @@ export async function uploadReport(payload: {
   problemType: ProblemType;
   satelliteImageUrl?: string;
   satelliteTakenAt?: string;
+  latitude?: number;
+  longitude?: number;
+  pixelX?: number;
+  pixelY?: number;
 }): Promise<EnvironmentalReport> {
   const formData = new FormData();
   formData.append("file", payload.file);
   formData.append("description", payload.description);
   formData.append("problemType", payload.problemType);
+  if (payload.latitude != null) formData.append("latitude", String(payload.latitude));
+  if (payload.longitude != null) formData.append("longitude", String(payload.longitude));
+  if (payload.pixelX != null) formData.append("pixelX", String(payload.pixelX));
+  if (payload.pixelY != null) formData.append("pixelY", String(payload.pixelY));
   if (payload.satelliteImageUrl) {
     formData.append("satelliteImageUrl", payload.satelliteImageUrl);
   }
   if (payload.satelliteTakenAt) {
     formData.append("satelliteTakenAt", payload.satelliteTakenAt);
   }
-
+  
   const response = await fetch(`${API_BASE_URL}/api/reports/upload`, {
     method: "POST",
     body: formData

@@ -28,8 +28,13 @@ public class EnvironmentalReportService {
             String description,
             ProblemType problemType,
             String satelliteImageUrl,
-            Instant satelliteTakenAt) throws IOException {
-        validate(file, description, problemType);
+            Instant satelliteTakenAt,
+            Double latitude,
+            Double longitude,
+            Integer pixelX,
+            Integer pixelY) throws IOException {
+
+        validate(file, description, problemType, latitude, longitude);
 
         ImageStorageService.StoredImage storedImage = imageStorageService.uploadImage(file);
 
@@ -40,6 +45,10 @@ public class EnvironmentalReportService {
         report.setImageUrl(storedImage.url());
         report.setSatelliteImageUrl(satelliteImageUrl);
         report.setSatelliteTakenAt(satelliteTakenAt);
+        report.setLatitude(latitude);
+        report.setLongitude(longitude);
+        report.setPixelX(pixelX);
+        report.setPixelY(pixelY);
 
         return reportRepository.save(report);
     }
@@ -48,7 +57,16 @@ public class EnvironmentalReportService {
         return reportRepository.findAllByOrderByCreatedAtDesc();
     }
 
-    private static void validate(MultipartFile file, String description, ProblemType problemType) {
+    // -------------------------------------------------------------------------
+    //  Validation
+    // -------------------------------------------------------------------------
+
+    private static void validate(MultipartFile file,
+            String description,
+            ProblemType problemType,
+            Double latitude,
+            Double longitude) {
+
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Image file is required.");
         }
@@ -63,6 +81,17 @@ public class EnvironmentalReportService {
         }
         if (problemType == null) {
             throw new IllegalArgumentException("Problem type is required.");
+        }
+
+        // Lat/lon must be supplied together or not at all
+        if ((latitude == null) != (longitude == null)) {
+            throw new IllegalArgumentException("Latitude and longitude must both be provided together.");
+        }
+        if (latitude != null && (latitude < -90 || latitude > 90)) {
+            throw new IllegalArgumentException("Latitude must be between -90 and 90.");
+        }
+        if (longitude != null && (longitude < -180 || longitude > 180)) {
+            throw new IllegalArgumentException("Longitude must be between -180 and 180.");
         }
     }
 }
