@@ -70,6 +70,9 @@ export default function DashboardPage() {
   const dragStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
   const touchRef = useRef<{ dist: number; midX: number; midY: number } | null>(null);
 
+  // Filter for Community Reports
+  const [communityFilter, setCommunityFilter] = useState<ProblemType | "">("");
+
   function resetZoom() {
     setZoom(1);
     setPan({ x: 0, y: 0 });
@@ -185,6 +188,12 @@ export default function DashboardPage() {
     const { lat, lon } = selectedCoordinates;
     return `https://www.google.com/maps?q=${lat.toFixed(6)},${lon.toFixed(6)}&z=14`;
   }, [selectedCoordinates]);
+
+  // Filtered community reports
+  const filteredCommunityReports = useMemo(() => {
+    if (!communityFilter) return reports;
+    return reports.filter(report => report.problemType === communityFilter);
+  }, [reports, communityFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -596,14 +605,38 @@ export default function DashboardPage() {
       <ReportsMapSection reports={reports} />
 
       <section className="panel">
-        <h2>Community reports</h2>
+        <div className="section-header">
+          <h2 className="section-title">Community reports</h2>
+
+          <div className="filter-group">
+            <label htmlFor="community-filter" className="filter-label">
+              Filter by type:
+            </label>
+            <div className="custom-select">
+              <select
+                id="community-filter"
+                value={communityFilter}
+                onChange={(e) => setCommunityFilter(e.target.value as ProblemType | "")}
+              >
+                <option value="">All Types</option>
+                {PROBLEM_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
 
         {loadingReports ? <p>Loading reports...</p> : null}
         {reportError ? <p className="form-error">{reportError}</p> : null}
-        {!loadingReports && !reportError && reports.length === 0 ? <p>No reports submitted yet.</p> : null}
+        {!loadingReports && !reportError && filteredCommunityReports.length === 0 ? (
+          <p>No reports match the selected filter.</p>
+        ) : null}
 
         <div className="image-grid">
-          {reports.map((report) => (
+          {filteredCommunityReports.map((report) => (
             <article key={report.id} className="image-card">
               <img src={report.imageUrl} alt={report.problemType} loading="lazy" />
               <p className="report-type">{report.problemType.replaceAll("_", " ")}</p>

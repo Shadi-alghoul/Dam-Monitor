@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -27,8 +27,6 @@ const PROBLEM_LABELS: Record<ProblemType, string> = {
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-/** Build a coloured SVG drop-pin DivIcon for a given problem type. */
 function createPinIcon(type: ProblemType): L.DivIcon {
   const color = PROBLEM_COLORS[type];
   const svg = `
@@ -44,10 +42,10 @@ function createPinIcon(type: ProblemType): L.DivIcon {
 
   return L.divIcon({
     html: svg,
-    className: "", // prevent Leaflet's default white-box class
+    className: "",
     iconSize: [28, 42],
-    iconAnchor: [14, 42], // tip of the pin needle
-    popupAnchor: [0, -46] // above the pin head
+    iconAnchor: [14, 42],
+    popupAnchor: [0, -46]
   });
 }
 
@@ -78,9 +76,16 @@ interface Props {
 }
 
 export default function ReportsMapSection({ reports }: Props) {
-  const geoReports = reports.filter((r) => r.latitude != null && r.longitude != null);
+  const [filterType, setFilterType] = useState<ProblemType | "">("");
 
-  // Pre-build icons outside JSX so they are not recreated on every render
+  // Filter reports for the map (only those with coordinates)
+  const filteredReports = useMemo(() => {
+    const geoReports = reports.filter((r) => r.latitude != null && r.longitude != null);
+    if (!filterType) return geoReports;
+    return geoReports.filter((r) => r.problemType === filterType);
+  }, [reports, filterType]);
+
+  // Pre-build icons outside JSX
   const iconCache = useRef<Partial<Record<ProblemType, L.DivIcon>>>({});
   function getIcon(type: ProblemType): L.DivIcon {
     if (!iconCache.current[type]) {
@@ -91,25 +96,50 @@ export default function ReportsMapSection({ reports }: Props) {
 
   return (
     <section className="panel">
-      <h2>Report locations</h2>
+            <div className="section-header">
+        <h2 className="section-title">Report locations</h2>
+
+        <div className="filter-group">
+          <label htmlFor="map-filter" className="filter-label">
+            Filter by type:
+          </label>
+          <div className="custom-select">
+            <select
+              id="map-filter"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as ProblemType | "")}
+            >
+              <option value="">All Types</option>
+              {Object.entries(PROBLEM_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  <span 
+                    className="option-dot" 
+                    style={{ backgroundColor: PROBLEM_COLORS[value as ProblemType] }}
+                  ></span>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
 
       <p className="satellite-meta">
-        {geoReports.length === 0
-          ? "No reports with location data yet — pin a location when submitting a report."
-          : `Showing ${geoReports.length} pinned report${geoReports.length !== 1 ? "s" : ""} on the map.`}
+        {filteredReports.length === 0
+          ? "No reports with location data match the current filter."
+          : `Showing ${filteredReports.length} pinned report${filteredReports.length !== 1 ? "s" : ""} on the map.`}
       </p>
 
       <div className="report-map-wrapper">
         <MapContainer center={DAM_CENTER} zoom={DAM_ZOOM} className="report-map" scrollWheelZoom>
-          {/* OpenStreetMap tiles — no API key required */}
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <MapAutoFit reports={geoReports} />
+          <MapAutoFit reports={filteredReports} />
 
-          {geoReports.map((report) => (
+          {filteredReports.map((report) => (
             <Marker
               key={report.id}
               position={[report.latitude!, report.longitude!]}
@@ -143,7 +173,7 @@ export default function ReportsMapSection({ reports }: Props) {
         </MapContainer>
       </div>
 
-      {/* Colour legend */}
+      {/* Colour legend - still shows all types for reference */}
       <div className="map-legend">
         {(Object.entries(PROBLEM_COLORS) as [ProblemType, string][]).map(([type, color]) => (
           <span key={type} className="map-legend__item">
