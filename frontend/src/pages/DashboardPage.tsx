@@ -151,6 +151,21 @@ export default function DashboardPage() {
     };
   }, [cacheBuster]);
 
+  // Prevent page scroll when zooming on the satellite image
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+    };
+
+    wrapper.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      wrapper.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
+
 
 
   return (
