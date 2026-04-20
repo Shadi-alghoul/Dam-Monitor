@@ -38,7 +38,7 @@ interface PinPosition {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [cacheBuster, setCacheBuster] = useState(Date.now());
+  const [cacheBuster] = useState(Date.now());
   const [satelliteResolution, setSatelliteResolution] = useState<{ width: number; height: number } | null>(null);
   const [selectedSatellitePixel, setSelectedSatellitePixel] = useState<{ x: number; y: number } | null>(null);
   const [selectedCoordinates, setSelectedCoordinates] = useState<{ lat: number; lon: number } | null>(null);
