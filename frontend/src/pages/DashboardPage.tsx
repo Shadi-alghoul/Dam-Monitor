@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchReports, fetchSatelliteSnapshot, uploadReport } from "../lib/api";
+import { fetchReports, fetchSatelliteSnapshot } from "../lib/api";
 
-import { getCurrentUser, logout } from "../lib/auth";
+import { getCurrentUser } from "../lib/auth";
 import ReportsMapSection from "../components/ReportsMapSection";
+import PageHeader from "../components/PageHeader";
 import type { EnvironmentalReport, ProblemType } from "../types";
 
 const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
@@ -51,13 +52,6 @@ export default function DashboardPage() {
   const [reports, setReports] = useState<EnvironmentalReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
   const [reportError, setReportError] = useState<string | null>(null);
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [description, setDescription] = useState("");
-  const [problemType, setProblemType] = useState<ProblemType>("POLLUTION");
-  const [submitting, setSubmitting] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
   // ── Pin state ────────────────────────────────────────────────────────────
   const [pinPosition, setPinPosition] = useState<PinPosition | null>(null);
@@ -276,11 +270,6 @@ export default function DashboardPage() {
     };
   }, []);
 
-  function onLogout() {
-    logout();
-    navigate("/login");
-  }
-
   function refreshSatelliteImage() {
     setSatelliteLoadError(null);
     setSelectedSatellitePixel(null);
@@ -340,62 +329,12 @@ export default function DashboardPage() {
   }
 
   async function onReportSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setUploadError(null);
-    setUploadSuccess(null);
-
-    if (!selectedFile) {
-      setUploadError("Please select an image file.");
-      return;
-    }
-    if (!description.trim()) {
-      setUploadError("Please add a short description.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await uploadReport({
-        file: selectedFile,
-        description,
-        problemType,
-        satelliteImageUrl: satelliteImageSrc || undefined,
-        satelliteTakenAt: satelliteTakenAt || undefined,
-        // Pass the clicked map location — undefined when the user hasn't clicked yet
-        latitude: selectedCoordinates?.lat,
-        longitude: selectedCoordinates?.lon,
-        pixelX: selectedSatellitePixel?.x,
-        pixelY: selectedSatellitePixel?.y
-      });
-      const refreshed = await fetchReports();
-      setReports(refreshed);
-      setSelectedFile(null);
-      setDescription("");
-      setProblemType("POLLUTION");
-      setUploadSuccess("Report submitted successfully.");
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Failed to submit report.");
-    } finally {
-      setSubmitting(false);
-    }
+    // This function has been moved to ReportPage.tsx
   }
 
   return (
     <main className="dashboard-page">
-      <header className="dashboard-header">
-        <div>
-          <p className="eyebrow">Dam Monitor</p>
-          <h1>Satellite Imaging Dashboard</h1>
-          <p className="subtitle">Signed in as {user?.name ?? user?.email}</p>
-        </div>
-
-        <div className="header-actions">
-          <button onClick={refreshSatelliteImage}>Refresh live image</button>
-          <button className="secondary" onClick={onLogout}>
-            Logout
-          </button>
-        </div>
-      </header>
+      <PageHeader title="Satellite Imaging Dashboard" />
 
       <section className="panel">
         <h2>Live satellite snapshot</h2>
@@ -535,70 +474,10 @@ export default function DashboardPage() {
 
       <section className="panel">
         <h2>Report environmental issue</h2>
-
-        {/* Nudge the user to pick a location before submitting */}
-        {!selectedCoordinates && (
-          <p className="satellite-meta" style={{ color: "#fbbf24" }}>
-            ⚠ Click the satellite image above to pin a location before submitting.
-          </p>
-        )}
-
-        <form className="report-form" onSubmit={onReportSubmit}>
-          <label>
-            Photo
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => {
-                setSelectedFile(event.target.files?.[0] ?? null);
-              }}
-            />
-          </label>
-
-          <label>
-            Problem type
-            <select
-              value={problemType}
-              onChange={(event) => {
-                setProblemType(event.target.value as ProblemType);
-              }}
-            >
-              {PROBLEM_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Description
-            <textarea
-              rows={4}
-              maxLength={1000}
-              value={description}
-              onChange={(event) => {
-                setDescription(event.target.value);
-              }}
-              placeholder="Describe what is happening at the dam..."
-            />
-          </label>
-
-          {/* Show the pinned location summary inside the form */}
-          {selectedCoordinates && selectedSatellitePixel && (
-            <p className="satellite-meta highlight" style={{ fontSize: "0.85rem" }}>
-              📍 Pinned: pixel ({selectedSatellitePixel.x}, {selectedSatellitePixel.y}) →{" "}
-              {selectedCoordinates.lat.toFixed(6)}, {selectedCoordinates.lon.toFixed(6)}
-            </p>
-          )}
-
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit report"}
-          </button>
-
-          {uploadError ? <p className="form-error">{uploadError}</p> : null}
-          {uploadSuccess ? <p className="form-success">{uploadSuccess}</p> : null}
-        </form>
+        <p>Found an environmental issue at the dam? Report it now!</p>
+        <button onClick={() => navigate("/report")} style={{ marginTop: "1rem" }}>
+          Report Issue
+        </button>
       </section>
 
       {/* ── Map section: shows all geo-tagged reports as coloured pins ─────── */}
