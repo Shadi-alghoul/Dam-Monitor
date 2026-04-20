@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchReports, fetchSatelliteSnapshot, uploadReport } from "../lib/api";
-import { getCurrentUser } from "../lib/auth";
+import { fetchSatelliteSnapshot, uploadReport } from "../lib/api";
 import PageHeader from "../components/PageHeader";
-import type { EnvironmentalReport, ProblemType } from "../types";
+import type { ProblemType } from "../types";
 
 const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
   { value: "POLLUTION", label: "Pollution" },
@@ -33,7 +32,6 @@ interface PinPosition {
 
 export default function ReportPage() {
   const navigate = useNavigate();
-  const user = getCurrentUser();
   const [cacheBuster, setCacheBuster] = useState(Date.now());
   const [satelliteResolution, setSatelliteResolution] = useState<{ width: number; height: number } | null>(null);
   const [selectedSatellitePixel, setSelectedSatellitePixel] = useState<{ x: number; y: number } | null>(null);

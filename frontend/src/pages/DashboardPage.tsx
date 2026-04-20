@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchReports, fetchSatelliteSnapshot } from "../lib/api";
 
-import { getCurrentUser } from "../lib/auth";
 import ReportsMapSection from "../components/ReportsMapSection";
 import PageHeader from "../components/PageHeader";
 import type { EnvironmentalReport, ProblemType } from "../types";
@@ -39,7 +38,6 @@ interface PinPosition {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const user = getCurrentUser();
   const [cacheBuster, setCacheBuster] = useState(Date.now());
   const [satelliteResolution, setSatelliteResolution] = useState<{ width: number; height: number } | null>(null);
   const [selectedSatellitePixel, setSelectedSatellitePixel] = useState<{ x: number; y: number } | null>(null);
@@ -270,14 +268,6 @@ export default function DashboardPage() {
     };
   }, []);
 
-  function refreshSatelliteImage() {
-    setSatelliteLoadError(null);
-    setSelectedSatellitePixel(null);
-    setPinPosition(null);
-    resetZoom();
-    setCacheBuster(Date.now());
-  }
-
   function onSatelliteImageClick(event: React.MouseEvent<HTMLImageElement>) {
     const imageElement = event.currentTarget;
     const naturalWidth = imageElement.naturalWidth;
@@ -326,10 +316,6 @@ export default function DashboardPage() {
 
     // Replace any existing pin with the new position
     setPinPosition({ leftFraction, topFraction, pixelX, pixelY });
-  }
-
-  async function onReportSubmit(event: React.FormEvent<HTMLFormElement>) {
-    // This function has been moved to ReportPage.tsx
   }
 
   return (
