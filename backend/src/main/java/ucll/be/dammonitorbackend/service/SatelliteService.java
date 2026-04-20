@@ -28,7 +28,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  * ≤ 20 % cloud cover. Reads the exact capture datetime
  * directly from {@code properties.datetime} in the response.
  *
- * 3. Process API — fetches a true-colour JPEG, with the time window pinned to
+ * 3. Process API — fetches a true-colour PNG, with the time window pinned to
  * the 24-hour day of the verified scene date so that the
  * image and the date are guaranteed to match.
  *
@@ -78,6 +78,11 @@ public class SatelliteService {
     // How many days back to search when looking for the latest cloud-free scene.
     private static final int CATALOGUE_LOOKBACK_DAYS = 30;
 
+    // ── Cloud cover threshold shared by catalogue filter AND Process API ──────
+    // Keeping these in sync prevents the Process API rendering a black image
+    // for a scene the catalogue accepted but the Process API then rejects.
+    private static final double MAX_CLOUD_COVER_PCT = 20.0;
+
     private final WebClient webClient;
 
     public SatelliteService(WebClient webClient) {
@@ -97,7 +102,7 @@ public class SatelliteService {
     /**
      * Carries the image, its verified capture date, and the collection used.
      *
-     * @param imageBytes Raw JPEG bytes ready to stream to the client.
+     * @param imageBytes Raw PNG bytes ready to stream to the client.
      * @param dateTaken  Exact satellite overpass time read from the Sentinel Hub
      *                   Catalogue API ({@code features[0].properties.datetime}).
      *                   This is not an estimate — it is the actual capture time
@@ -183,7 +188,7 @@ public class SatelliteService {
      * find the single most recent Sentinel-2 L2A scene that:
      * <ul>
      * <li>intersects the Hartbeespoort Dam bounding box</li>
-     * <li>has ≤ 20 % cloud cover ({@code eo:cloud_cover})</li>
+     * <li>has ≤ {@value #MAX_CLOUD_COVER_PCT} % cloud cover ({@code eo:cloud_cover})</li>
      * <li>was captured within the last {@value #CATALOGUE_LOOKBACK_DAYS} days</li>
      * </ul>
      *
@@ -199,9 +204,7 @@ public class SatelliteService {
     private SceneInfo fetchLatestSceneDate(String token) {
         Instant now = Instant.now();
         Instant from = now.minus(CATALOGUE_LOOKBACK_DAYS, ChronoUnit.DAYS);
-        // Basically, I fixed locale formatting issue, bcoz some windows locales use
-        // comma instead of dots, and that breaks the JSON. Now it forces all systems to
-        // use dots.
+        // Force ROOT locale so all systems use dots, not commas, in JSON numbers.
         String catalogueBody = String.format(java.util.Locale.ROOT, """
                 {
                   "collections": ["sentinel-2-l2a"],
@@ -244,7 +247,7 @@ public class SatelliteService {
                             + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
         }
 
-        // Filter for cloud cover <= 20% and find the most recent
+        // Filter for cloud cover <= MAX_CLOUD_COVER_PCT and find the most recent
         JsonNode bestFeature = null;
         Instant bestDate = null;
 
@@ -253,7 +256,7 @@ public class SatelliteService {
             double cloudCover = properties.path("eo:cloud_cover").asDouble(100.0);
             String datetimeStr = properties.path("datetime").asText(null);
 
-            if (datetimeStr != null && cloudCover <= 20.0) {
+            if (datetimeStr != null && cloudCover <= MAX_CLOUD_COVER_PCT) {
                 Instant date = Instant.parse(datetimeStr);
                 if (bestDate == null || date.isAfter(bestDate)) {
                     bestDate = date;
@@ -265,7 +268,7 @@ public class SatelliteService {
         if (bestFeature == null) {
             throw new RuntimeException(
                     "No Sentinel-2 scenes found in the last " + CATALOGUE_LOOKBACK_DAYS
-                            + " days with ≤ 20 % cloud cover over Hartbeespoort Dam. "
+                            + " days with ≤ " + MAX_CLOUD_COVER_PCT + " % cloud cover over Hartbeespoort Dam. "
                             + "Consider increasing CATALOGUE_LOOKBACK_DAYS.");
         }
 
@@ -302,7 +305,7 @@ public class SatelliteService {
     // =========================================================================
 
     /**
-     * Requests a JPEG from the Sentinel Hub Process API.
+     * Requests a PNG from the Sentinel Hub Process API.
      *
      * The time window is the 24-hour calendar day of {@code dateTaken}
      * (midnight-to-midnight UTC), ensuring the Process API renders the
@@ -310,7 +313,7 @@ public class SatelliteService {
      *
      * @param token     OAuth2 bearer token
      * @param dateTaken exact scene capture time from the catalogue
-     * @return raw JPEG bytes
+     * @return raw PNG bytes
      */
     private byte[] fetchImage(String token, Instant dateTaken) {
         // Pin to the calendar day of the exact scene — midnight UTC to midnight UTC
@@ -324,7 +327,7 @@ public class SatelliteService {
                 .uri(processUrl)
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.IMAGE_JPEG)
+                .accept(MediaType.IMAGE_PNG)
                 .bodyValue(requestBody)
                 .retrieve()
                 .onStatus(
@@ -350,7 +353,12 @@ public class SatelliteService {
      * Builds the JSON payload for the Sentinel Hub Process API.
      *
      * Evalscript: true-colour composite —
-     * B04 (red), B03 (green), B02 (blue), scaled ×2.5 for visual brightness.
+     * B04 (red), B03 (green), B02 (blue), gamma-corrected and scaled to UINT8
+     * (0–255). Using UINT8 is essential: UINT16 output produces a 16-bit PNG
+     * that most browsers and image viewers render as black.
+     *
+     * maxCloudCoverage is intentionally set to {@value #MAX_CLOUD_COVER_PCT} to
+     * match the catalogue filter threshold and avoid no-data (black) renders.
      *
      * @param from window start (00:00:00 UTC of the scene's calendar day)
      * @param to   window end (00:00:00 UTC of the following day)
@@ -358,35 +366,39 @@ public class SatelliteService {
     private String buildProcessRequestBody(Instant from, Instant to) {
         return String.format(java.util.Locale.ROOT,
                 """
-                        {
-                          "input": {
-                            "bounds": {
-                              "bbox": [%f, %f, %f, %f]
-                            },
-                            "data": [{
-                              "type": "sentinel-2-l2a",
-                              "dataFilter": {
-                                "timeRange": {
-                                  "from": "%s",
-                                  "to":   "%s"
-                                },
-                                "maxCloudCoverage": 20
-                              }
-                            }]
-                          },
-                          "output": {
-                            "width":  %d,
-                            "height": %d,
-                            "responses": [{
-                              "identifier": "default",
-                              "format": { "type": "image/jpeg" }
-                            }]
-                          },
-                          "evalscript": "//VERSION=3\\nfunction setup() {\\n  return {\\n    input: [\\"B02\\", \\"B03\\", \\"B04\\"],\\n    output: { bands: 3 }\\n  };\\n}\\nfunction evaluatePixel(sample) {\\n  return [4.0 * sample.B04, 4.0 * sample.B03, 4.0 * sample.B02];\\n}"
-                        }
-                        """,
+                {
+                  "input": {
+                    "bounds": {
+                      "bbox": [%f, %f, %f, %f]
+                    },
+                    "data": [{
+                      "type": "sentinel-2-l2a",
+                      "dataFilter": {
+                        "timeRange": {
+                          "from": "%s",
+                          "to":   "%s"
+                        },
+                        "maxCloudCoverage": %s
+                      },
+                      "processing": {
+                        "upsampling":   "BICUBIC",
+                        "downsampling": "BILINEAR"
+                      }
+                    }]
+                  },
+                  "output": {
+                    "resx": 0.0001,
+                    "resy": 0.0001,
+                    "responses": [{
+                      "identifier": "default",
+                      "format": { "type": "image/png" }
+                    }]
+                  },
+                  "evalscript": "//VERSION=3\\nfunction setup() {\\n  return {\\n    input: [\\"B02\\", \\"B03\\", \\"B04\\"],\\n    output: { bands: 3, sampleType: \\"UINT8\\" }\\n  };\\n}\\nfunction evaluatePixel(sample) {\\n  const g = 2.2;\\n  function c(v) { return Math.min(255, Math.round(Math.pow(Math.min(1.0, v * 2.5), 1.0 / g) * 255)); }\\n  return [c(sample.B04), c(sample.B03), c(sample.B02)];\\n}"
+                }
+                """,
                 BBOX_MIN_LON, BBOX_MIN_LAT, BBOX_MAX_LON, BBOX_MAX_LAT,
                 from.toString(), to.toString(),
-                IMAGE_WIDTH, IMAGE_HEIGHT);
+                (int) MAX_CLOUD_COVER_PCT);
     }
 }
