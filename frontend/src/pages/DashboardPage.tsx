@@ -1,42 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchSatelliteSnapshot } from "../lib/api";
 
 import PageHeader from "../components/PageHeader";
 
-// Hartbeespoort Dam satellite image bounds (matching backend SatelliteService)
-const HARTBEESPOORT_BOUNDS = {
-  minLon: 27.78822,
-  minLat: -25.77346,
-  maxLon: 27.907053,
-  maxLat: -25.723519,
-  width: 1920,
-  height: 1080
-};
-/** Pixel-accurate position of the pin expressed as percentages of the
- *  rendered image container so the overlay stays aligned on any resize. */
-interface PinPosition {
-  /** Left offset as a fraction (0–1) of the container width */
-  leftFraction: number;
-  /** Top offset as a fraction (0–1) of the container height */
-  topFraction: number;
-  /** Natural-image pixel coordinates for display */
-  pixelX: number;
-  pixelY: number;
-}
-
 export default function DashboardPage() {
   const [cacheBuster] = useState(Date.now());
   const [satelliteResolution, setSatelliteResolution] = useState<{ width: number; height: number } | null>(null);
-  const [selectedSatellitePixel, setSelectedSatellitePixel] = useState<{ x: number; y: number } | null>(null);
-  const [selectedCoordinates, setSelectedCoordinates] = useState<{ lat: number; lon: number } | null>(null);
   const [satelliteImageSrc, setSatelliteImageSrc] = useState<string | null>(null);
-  const [satelliteTakenAt, setSatelliteTakenAt] = useState<string | null>(null);
-  const [satelliteCollection, setSatelliteCollection] = useState<string | null>(null);
   const [loadingSatellite, setLoadingSatellite] = useState(true);
   const [satelliteLoadError, setSatelliteLoadError] = useState<string | null>(null);
-
-  // ── Pin state ────────────────────────────────────────────────────────────
-  const [pinPosition, setPinPosition] = useState<PinPosition | null>(null);
 
   // Zoom / pan state
   const [zoom, setZoom] = useState(1);
@@ -129,39 +101,6 @@ export default function DashboardPage() {
     touchRef.current.dist = newDist;
   }
 
-  const takenAtLabel = useMemo(() => {
-    if (!satelliteTakenAt) {
-      return "Image taken: not available";
-    }
-
-    const parsed = new Date(satelliteTakenAt);
-    if (Number.isNaN(parsed.getTime())) {
-      return "Image taken: not available";
-    }
-
-    return `Image taken: ${parsed.toLocaleString()}`;
-  }, [satelliteTakenAt]);
-
-  /**
-   * Convert pixel coordinates to geographic coordinates (lat/lon)
-   * based on the satellite image bounds and dimensions.
-   */
-  const pixelToCoordinates = (pixelX: number, pixelY: number): { lat: number; lon: number } => {
-    const { minLon, minLat, maxLon, maxLat, width, height } = HARTBEESPOORT_BOUNDS;
-    const lon = minLon + (pixelX / width) * (maxLon - minLon);
-    const lat = maxLat - (pixelY / height) * (maxLat - minLat); // Y increases downward in pixels
-    return { lat, lon };
-  };
-
-  /**
-   * Generate Google Maps URL for the selected coordinates.
-   */
-  const googleMapsUrl = useMemo(() => {
-    if (!selectedCoordinates) return null;
-    const { lat, lon } = selectedCoordinates;
-    return `https://www.google.com/maps?q=${lat.toFixed(6)},${lon.toFixed(6)}&z=14`;
-  }, [selectedCoordinates]);
-
   // Load satellite snapshot on mount and when cacheBuster changes
   useEffect(() => {
     let isMounted = true;
@@ -170,7 +109,6 @@ export default function DashboardPage() {
     async function loadSatelliteSnapshot() {
       setLoadingSatellite(true);
       setSatelliteLoadError(null);
-      setSatelliteCollection(null);
 
       try {
         const snapshot = await fetchSatelliteSnapshot(cacheBuster);
@@ -186,8 +124,7 @@ export default function DashboardPage() {
           }
           return snapshot.objectUrl;
         });
-        setSatelliteTakenAt(snapshot.acquiredAt);
-        setSatelliteCollection(snapshot.sourceCollection);
+
       } catch (err) {
         if (isMounted) {
           setSatelliteLoadError(err instanceof Error ? err.message : "Unable to load live satellite image.");
@@ -209,61 +146,7 @@ export default function DashboardPage() {
     };
   }, [cacheBuster]);
 
-  // Reset selected coordinates when a new satellite image is loaded
-  useEffect(() => {
-    setSelectedSatellitePixel(null);
-    setSelectedCoordinates(null);
-  }, [cacheBuster]);
 
-  function onSatelliteImageClick(event: React.MouseEvent<HTMLImageElement>) {
-    const imageElement = event.currentTarget;
-    const naturalWidth = imageElement.naturalWidth;
-    const naturalHeight = imageElement.naturalHeight;
-
-    if (!naturalWidth || !naturalHeight) {
-      return;
-    }
-
-    const bounds = imageElement.getBoundingClientRect();
-    const renderedWidth = bounds.width;
-    const renderedHeight = bounds.height;
-
-    // object-fit: contain letterbox maths
-    const scale = Math.min(renderedWidth / naturalWidth, renderedHeight / naturalHeight);
-    const visibleWidth = naturalWidth * scale;
-    const visibleHeight = naturalHeight * scale;
-    const offsetX = (renderedWidth - visibleWidth) / 2;
-    const offsetY = (renderedHeight - visibleHeight) / 2;
-
-    const clickX = event.clientX - bounds.left;
-    const clickY = event.clientY - bounds.top;
-    const xInsideVisible = clickX - offsetX;
-    const yInsideVisible = clickY - offsetY;
-
-    if (xInsideVisible < 0 || yInsideVisible < 0 || xInsideVisible > visibleWidth || yInsideVisible > visibleHeight) {
-      return;
-    }
-
-    const pixelX = Math.max(0, Math.min(naturalWidth - 1, Math.floor((xInsideVisible / visibleWidth) * naturalWidth)));
-    const pixelY = Math.max(0, Math.min(naturalHeight - 1, Math.floor((yInsideVisible / visibleHeight) * naturalHeight)));
-
-    setSelectedSatellitePixel({ x: pixelX, y: pixelY });
-
-    const coords = pixelToCoordinates(pixelX, pixelY);
-    setSelectedCoordinates(coords);
-
-    // ── Compute pin position as fractions of the container element ──────
-    // The container wraps the <img> and is the same size as the rendered img.
-    // We store fractions so the pin repositions correctly after any CSS resize.
-    const containerElement = imageElement.parentElement as HTMLElement;
-    const containerBounds = containerElement.getBoundingClientRect();
-
-    const leftFraction = (event.clientX - containerBounds.left) / containerBounds.width;
-    const topFraction = (event.clientY - containerBounds.top) / containerBounds.height;
-
-    // Replace any existing pin with the new position
-    setPinPosition({ leftFraction, topFraction, pixelX, pixelY });
-  }
 
   return (
     <main className="dashboard-page">
@@ -271,39 +154,11 @@ export default function DashboardPage() {
 
       <section className="panel">
         <h2>Live satellite snapshot</h2>
-        <p className="satellite-meta">{takenAtLabel}</p>
-        {satelliteCollection ? <p className="satellite-meta">Satellite source: {satelliteCollection}</p> : null}
         {satelliteResolution ? (
           <p className="satellite-meta">
             Resolution: {satelliteResolution.width} x {satelliteResolution.height}
           </p>
         ) : null}
-        {selectedSatellitePixel ? (
-          <>
-          <p className="satellite-meta highlight">
-            Selected pixel: ({selectedSatellitePixel.x}, {selectedSatellitePixel.y})
-          </p>
-            {selectedCoordinates && (
-              <>
-                <p className="satellite-meta highlight">
-                  Coordinates: {selectedCoordinates.lat.toFixed(6)}, {selectedCoordinates.lon.toFixed(6)}
-                </p>
-                <p className="satellite-meta">
-                  <a
-                    href={googleMapsUrl!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "#0066cc", textDecoration: "underline" }}
-                  >
-                    View in Google Maps →
-                  </a>
-                </p>
-              </>
-            )}
-          </>
-        ) : (
-          <p className="satellite-meta">Click the image to select a location for your report.</p>
-        )}
         {loadingSatellite ? <p className="satellite-meta">Loading live image...</p> : null}
         {satelliteLoadError ? <p className="form-error">{satelliteLoadError}</p> : null}
 
@@ -317,11 +172,11 @@ export default function DashboardPage() {
           )}
         </p>
 
-        {/* Satellite image wrapper with zoom + pin overlay */}
+        {/* Satellite image wrapper with zoom (view-only) */}
         <div
           ref={wrapperRef}
           className="satellite-image-wrapper"
-          style={{ cursor: isDragging ? "grabbing" : zoom > 1 ? "grab" : "crosshair" }}
+          style={{ cursor: isDragging ? "grabbing" : zoom > 1 ? "grab" : "default" }}
           onWheel={onWrapperWheel}
           onMouseDown={onWrapperMouseDown}
           onMouseMove={onWrapperMouseMove}
@@ -330,7 +185,7 @@ export default function DashboardPage() {
           onTouchStart={onWrapperTouchStart}
           onTouchMove={onWrapperTouchMove}
         >
-          {/* Inner div receives the CSS transform — both image and pin scale together */}
+          {/* Inner div receives the CSS transform */}
           <div
             className="satellite-zoom-inner"
             style={{
@@ -343,7 +198,6 @@ export default function DashboardPage() {
               src={satelliteImageSrc ?? ""}
               alt="Live satellite imagery"
               draggable={false}
-              onClick={isDragging ? undefined : onSatelliteImageClick}
               onLoad={(event) => {
                 const imageElement = event.currentTarget;
                 setSatelliteResolution({ width: imageElement.naturalWidth, height: imageElement.naturalHeight });
@@ -353,34 +207,6 @@ export default function DashboardPage() {
                 setSatelliteLoadError("Unable to load live satellite image.");
               }}
             />
-
-            {/* Pin lives inside the zoom container so it moves with the image */}
-            {pinPosition && (
-              <div
-                className="satellite-pin"
-                style={{
-                  left: `${pinPosition.leftFraction * 100}%`,
-                  top: `${pinPosition.topFraction * 100}%`,
-                }}
-                aria-label={`Pin at pixel (${pinPosition.pixelX}, ${pinPosition.pixelY})`}
-              >
-                <svg
-                  className="satellite-pin__icon"
-                  viewBox="0 0 24 36"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M12 0C5.373 0 0 5.373 0 12c0 8.284 10.667 22.628 11.134 23.243a1.1 1.1 0 0 0 1.732 0C13.333 34.628 24 20.284 24 12 24 5.373 18.627 0 12 0z"
-                    fill="#ef4444"
-                  />
-                  <circle cx="12" cy="12" r="5" fill="white" />
-                </svg>
-                <span className="satellite-pin__label">
-                  {pinPosition.pixelX}, {pinPosition.pixelY}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -389,17 +215,6 @@ export default function DashboardPage() {
           {zoom >= 1 && (
             <button className="secondary pin-clear-btn" onClick={resetZoom}>
               Reset zoom
-            </button>
-          )}
-          {pinPosition && (
-            <button
-              className="secondary pin-clear-btn"
-              onClick={() => {
-                setPinPosition(null);
-                setSelectedSatellitePixel(null);
-              }}
-            >
-              Clear pin
             </button>
           )}
         </div>
