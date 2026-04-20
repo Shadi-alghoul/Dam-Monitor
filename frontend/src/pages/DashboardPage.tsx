@@ -1,19 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { fetchReports, fetchSatelliteSnapshot } from "../lib/api";
+import { fetchSatelliteSnapshot } from "../lib/api";
 
-import ReportsMapSection from "../components/ReportsMapSection";
 import PageHeader from "../components/PageHeader";
-import type { EnvironmentalReport, ProblemType } from "../types";
-
-const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
-  { value: "POLLUTION", label: "Pollution" },
-  { value: "ALGAE_BLOOM", label: "Algae bloom" },
-  { value: "WILDLIFE_DISTRESS", label: "Wildlife distress" },
-  { value: "ILLEGAL_DUMPING", label: "Illegal dumping" },
-  { value: "INFRASTRUCTURE_DAMAGE", label: "Infrastructure damage" },
-  { value: "OTHER", label: "Other" }
-];
 
 // Hartbeespoort Dam satellite image bounds (matching backend SatelliteService)
 const HARTBEESPOORT_BOUNDS = {
@@ -37,7 +25,6 @@ interface PinPosition {
 }
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const [cacheBuster] = useState(Date.now());
   const [satelliteResolution, setSatelliteResolution] = useState<{ width: number; height: number } | null>(null);
   const [selectedSatellitePixel, setSelectedSatellitePixel] = useState<{ x: number; y: number } | null>(null);
@@ -47,9 +34,6 @@ export default function DashboardPage() {
   const [satelliteCollection, setSatelliteCollection] = useState<string | null>(null);
   const [loadingSatellite, setLoadingSatellite] = useState(true);
   const [satelliteLoadError, setSatelliteLoadError] = useState<string | null>(null);
-  const [reports, setReports] = useState<EnvironmentalReport[]>([]);
-  const [loadingReports, setLoadingReports] = useState(true);
-  const [reportError, setReportError] = useState<string | null>(null);
 
   // ── Pin state ────────────────────────────────────────────────────────────
   const [pinPosition, setPinPosition] = useState<PinPosition | null>(null);
@@ -61,9 +45,6 @@ export default function DashboardPage() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
   const touchRef = useRef<{ dist: number; midX: number; midY: number } | null>(null);
-
-  // Filter for Community Reports
-  const [communityFilter, setCommunityFilter] = useState<ProblemType | "">("");
 
   function resetZoom() {
     setZoom(1);
@@ -181,12 +162,7 @@ export default function DashboardPage() {
     return `https://www.google.com/maps?q=${lat.toFixed(6)},${lon.toFixed(6)}&z=14`;
   }, [selectedCoordinates]);
 
-  // Filtered community reports
-  const filteredCommunityReports = useMemo(() => {
-    if (!communityFilter) return reports;
-    return reports.filter(report => report.problemType === communityFilter);
-  }, [reports, communityFilter]);
-
+  // Load satellite snapshot on mount and when cacheBuster changes
   useEffect(() => {
     let isMounted = true;
     let currentObjectUrl: string | null = null;
@@ -238,35 +214,6 @@ export default function DashboardPage() {
     setSelectedSatellitePixel(null);
     setSelectedCoordinates(null);
   }, [cacheBuster]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadReports() {
-      setLoadingReports(true);
-      setReportError(null);
-
-      try {
-        const loadedReports = await fetchReports();
-        if (isMounted) {
-          setReports(loadedReports);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setReportError(err instanceof Error ? err.message : "Could not load reports.");
-        }
-      } finally {
-        if (isMounted) {
-          setLoadingReports(false);
-        }
-      }
-    }
-
-    loadReports();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   function onSatelliteImageClick(event: React.MouseEvent<HTMLImageElement>) {
     const imageElement = event.currentTarget;
@@ -455,68 +402,6 @@ export default function DashboardPage() {
               Clear pin
             </button>
           )}
-        </div>
-      </section>
-
-      <section className="panel">
-        <h2>Report environmental issue</h2>
-        <p>Found an environmental issue at the dam? Report it now!</p>
-        <button onClick={() => navigate("/report")} style={{ marginTop: "1rem" }}>
-          Report Issue
-        </button>
-      </section>
-
-      {/* ── Map section: shows all geo-tagged reports as coloured pins ─────── */}
-      <ReportsMapSection reports={reports} />
-
-      <section className="panel">
-        <div className="section-header">
-          <h2 className="section-title">Community reports</h2>
-
-          <div className="filter-group">
-            <label htmlFor="community-filter" className="filter-label">
-              Filter by type:
-            </label>
-            <div className="custom-select">
-              <select
-                id="community-filter"
-                value={communityFilter}
-                onChange={(e) => setCommunityFilter(e.target.value as ProblemType | "")}
-              >
-                <option value="">All Types</option>
-                {PROBLEM_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {loadingReports ? <p>Loading reports...</p> : null}
-        {reportError ? <p className="form-error">{reportError}</p> : null}
-        {!loadingReports && !reportError && filteredCommunityReports.length === 0 ? (
-          <p>No reports match the selected filter.</p>
-        ) : null}
-
-        <div className="image-grid">
-          {filteredCommunityReports.map((report) => (
-            <article key={report.id} className="image-card">
-              <img src={report.imageUrl} alt={report.problemType} loading="lazy" />
-              <p className="report-type">{report.problemType.replaceAll("_", " ")}</p>
-              <p className="report-description">{report.description}</p>
-              {report.latitude != null && report.longitude != null && (
-                <p className="report-meta">
-                  📍 {report.latitude.toFixed(5)}, {report.longitude.toFixed(5)}
-                </p>
-              )}
-              {report.satelliteTakenAt && (
-                <p className="report-meta">Satellite image: {new Date(report.satelliteTakenAt).toLocaleString()}</p>
-              )}
-              <p className="report-meta">Reported: {new Date(report.createdAt).toLocaleString()}</p>
-            </article>
-          ))}
         </div>
       </section>
     </main>

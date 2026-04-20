@@ -5,6 +5,7 @@ import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ReportPage from "./pages/ReportPage";
+import CommunityReportsPage from "./pages/CommunityReportsPage";
 
 export default function App() {
   return (
@@ -28,6 +29,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <ReportPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/community"
+        element={
+          <ProtectedRoute>
+            <CommunityReportsPage />
           </ProtectedRoute>
         }
       />

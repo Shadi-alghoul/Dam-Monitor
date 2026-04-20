@@ -31,6 +31,9 @@ export default function PageHeader({ title, eyebrow = "Dam Monitor" }: PageHeade
         <button onClick={() => handleNavigation("/dashboard")} className="secondary">
           Dashboard
         </button>
+        <button onClick={() => handleNavigation("/community")} className="secondary">
+          Community Reports
+        </button>
         <button onClick={() => handleNavigation("/report")} className="secondary">
           Report Issue
         </button>
