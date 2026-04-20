@@ -7,6 +7,8 @@ export default function DashboardPage() {
   const [cacheBuster] = useState(Date.now());
   const [satelliteResolution, setSatelliteResolution] = useState<{ width: number; height: number } | null>(null);
   const [satelliteImageSrc, setSatelliteImageSrc] = useState<string | null>(null);
+  const [satelliteTakenAt, setSatelliteTakenAt] = useState<string | null>(null);
+  const [satelliteCollection, setSatelliteCollection] = useState<string | null>(null);
   const [loadingSatellite, setLoadingSatellite] = useState(true);
   const [satelliteLoadError, setSatelliteLoadError] = useState<string | null>(null);
 
@@ -109,6 +111,7 @@ export default function DashboardPage() {
     async function loadSatelliteSnapshot() {
       setLoadingSatellite(true);
       setSatelliteLoadError(null);
+      setSatelliteCollection(null);
 
       try {
         const snapshot = await fetchSatelliteSnapshot(cacheBuster);
@@ -124,6 +127,8 @@ export default function DashboardPage() {
           }
           return snapshot.objectUrl;
         });
+        setSatelliteTakenAt(snapshot.acquiredAt);
+        setSatelliteCollection(snapshot.sourceCollection);
 
       } catch (err) {
         if (isMounted) {
@@ -154,6 +159,12 @@ export default function DashboardPage() {
 
       <section className="panel">
         <h2>Live satellite snapshot</h2>
+        {satelliteTakenAt && (
+          <p className="satellite-meta">
+            Image taken: {new Date(satelliteTakenAt).toLocaleString()}
+          </p>
+        )}
+        {satelliteCollection ? <p className="satellite-meta">Satellite source: {satelliteCollection}</p> : null}
         {satelliteResolution ? (
           <p className="satellite-meta">
             Resolution: {satelliteResolution.width} x {satelliteResolution.height}
