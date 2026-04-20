@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { EnvironmentalReport, ProblemType } from "../types";
-
+import HeatmapLayer from "./HeatmapLayer";
 // ── Constants ──────────────────────────────────────────────────────────────
 const DAM_CENTER: [number, number] = [-25.748, 27.848];
 const DAM_ZOOM = 13;
@@ -138,6 +138,7 @@ export default function ReportsMapSection({ reports }: Props) {
           />
 
           <MapAutoFit reports={filteredReports} />
+          <HeatmapLayer reports={filteredReports} />
 
           {filteredReports.map((report) => (
             <Marker
