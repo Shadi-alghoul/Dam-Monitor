@@ -13,16 +13,8 @@ const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
   { value: "OTHER", label: "Other" }
 ];
 
-// Hartbeespoort Dam satellite image bounds
-const HARTBEESPOORT_BOUNDS = {
-  minLon: 27.78822,
-  minLat: -25.77346,
-  maxLon: 27.907053,
-  maxLat: -25.723519,
-  width: 1920,
-  height: 1080
-};
 
+{}  
 interface PinPosition {
   leftFraction: number;
   topFraction: number;
@@ -59,6 +51,17 @@ export default function ReportPage() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
   const touchRef = useRef<{ dist: number; midX: number; midY: number } | null>(null);
+
+  // Hartbeespoort Dam satellite image bounds
+
+  const HARTBEESPOORT_BOUNDS = {
+    minLon: 27.78822,
+    minLat: -25.77346,
+    maxLon: 27.907053,
+    maxLat: -25.723519,
+    width: satelliteResolution?.width ?? 1,
+    height: satelliteResolution?.height ?? 1
+  };
 
   function resetZoom() {
     setZoom(1);
