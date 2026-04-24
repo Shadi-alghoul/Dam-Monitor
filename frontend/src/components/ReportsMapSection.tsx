@@ -7,6 +7,10 @@ import HeatmapLayer from "./HeatmapLayer";
 // ── Constants ──────────────────────────────────────────────────────────────
 const DAM_CENTER: [number, number] = [-25.748, 27.848];
 const DAM_ZOOM = 13;
+const DAM_BOUNDS: L.LatLngBoundsExpression = [
+  [-25.77346, 27.78822],
+  [-25.723519, 27.907053]
+];
 
 const PROBLEM_COLORS: Record<ProblemType, string> = {
   POLLUTION: "#ef4444",
@@ -131,7 +135,7 @@ export default function ReportsMapSection({ reports }: Props) {
       </p>
 
       <div className="report-map-wrapper">
-        <MapContainer center={DAM_CENTER} zoom={DAM_ZOOM} className="report-map" scrollWheelZoom>
+        <MapContainer center={DAM_CENTER} zoom={DAM_ZOOM} className="report-map" scrollWheelZoom maxBounds={DAM_BOUNDS} maxBoundsViscosity={1.0} minZoom={12}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
