@@ -10,9 +10,11 @@ import { countReportsByZone, ALERT_THRESHOLD } from "../lib/zones";
 // ── Constants ──────────────────────────────────────────────────────────────
 const DAM_CENTER: [number, number] = [-25.748, 27.848];
 const DAM_ZOOM = 13;
+const DAM_MIN_ZOOM = 13;
+
 const DAM_BOUNDS: L.LatLngBoundsExpression = [
-  [-25.77346, 27.78822],
-  [-25.723519, 27.907053],
+  [-25.778, 27.784],
+  [-25.720, 27.912],
 ];
 
 const PROBLEM_COLORS: Record<ProblemType, string> = {
@@ -177,7 +179,8 @@ export default function ReportsMapSection({ reports }: Props) {
           scrollWheelZoom
           maxBounds={DAM_BOUNDS}
           maxBoundsViscosity={1.0}
-          minZoom={12}
+          minZoom={DAM_MIN_ZOOM}
+          maxZoom={18}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
