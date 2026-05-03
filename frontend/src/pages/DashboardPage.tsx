@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchSatelliteSnapshot } from "../lib/api";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 import PageHeader from "../components/PageHeader";
 
@@ -11,6 +12,17 @@ export default function DashboardPage() {
   const [satelliteCollection, setSatelliteCollection] = useState<string | null>(null);
   const [loadingSatellite, setLoadingSatellite] = useState(true);
   const [satelliteLoadError, setSatelliteLoadError] = useState<string | null>(null);
+
+  const [pollutionData, setPollutionData] = useState<any[]>([]);
+
+  useEffect(() => {
+  fetch("http://localhost:8080/api/reports/pollution-trend")
+    .then(res => res.json())
+    .then(data => setPollutionData(data))
+    .catch(err => console.error(err));
+}, []);
+
+
 
   // Zoom / pan state
   const [zoom, setZoom] = useState(1);
@@ -245,6 +257,36 @@ export default function DashboardPage() {
           )}
         </div>
       </section>
+      
+      <section className="panel">
+  <h2>Plastic Pollution Levels Over Time</h2>
+
+<div style={{ width: "100%", height: "300px" }}>    <ResponsiveContainer>
+      <LineChart data={pollutionData}>
+        <CartesianGrid strokeDasharray="3 3" />
+
+        <XAxis dataKey="date" />
+
+        <YAxis
+          label={{
+            value: "Pollution Level",
+            angle: -90,
+            position: "insideLeft",
+          }}
+        />
+
+        <Tooltip formatter={(value) => `${value} units`} />
+
+        <Line
+          type="monotone"
+          dataKey="pollution"
+          stroke="#22c55e"
+          strokeWidth={3}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+</section>
     </main>
   );
 }
