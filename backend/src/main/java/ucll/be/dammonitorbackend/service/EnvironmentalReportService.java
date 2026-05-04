@@ -41,7 +41,7 @@ public class EnvironmentalReportService {
         validate(file, description, problemType, latitude, longitude);
 
         // Validate image with AI model BEFORE uploading
-        AIValidationService.ValidationResult validationResult = aiValidationService.validateImage(file);
+        AIValidationService.ValidationResult validationResult = aiValidationService.validateImage(file, description);
 
         ImageStorageService.StoredImage storedImage = imageStorageService.uploadImage(file);
 
@@ -68,6 +68,10 @@ public class EnvironmentalReportService {
 
     public List<EnvironmentalReport> findAllReports() {
         return reportRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public List<EnvironmentalReport> findApprovedReports() {
+        return reportRepository.findAllByAiApprovedTrueOrderByCreatedAtDesc();
     }
 
     public Optional<EnvironmentalReport> findReportById(Long id) {

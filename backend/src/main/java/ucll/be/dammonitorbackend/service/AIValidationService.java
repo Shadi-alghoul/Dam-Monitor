@@ -51,12 +51,13 @@ public class AIValidationService {
     /**
      * Validates an environmental report image using the Ollama AI model.
      * The model will analyze the image and determine if it contains an
-     * environmental issue.
+     * environmental issue, and verify that the user's description matches.
      *
-     * @param file The image file to validate
+     * @param file        The image file to validate
+     * @param description The user's description of the environmental issue
      * @return ValidationResult with approval status and reason
      */
-    public ValidationResult validateImage(MultipartFile file) {
+    public ValidationResult validateImage(MultipartFile file, String description) {
         try {
             logger.debug("Starting image validation for file: {}", file.getOriginalFilename());
 
@@ -71,7 +72,7 @@ public class AIValidationService {
                     ollamaBaseUrl, ollamaModel);
             long startTime = System.currentTimeMillis();
 
-            String response = callOllamaAPI(base64Image);
+            String response = callOllamaAPI(base64Image, description);
 
             long duration = System.currentTimeMillis() - startTime;
             logger.debug("Ollama API responded in {} ms", duration);
@@ -99,7 +100,7 @@ public class AIValidationService {
      * Calls the Ollama API with the base64-encoded image.
      * Uses the HTTP endpoint for compatibility with local Ollama instances.
      */
-    private String callOllamaAPI(String base64Image) throws IOException {
+    private String callOllamaAPI(String base64Image, String description) throws IOException {
         try {
             // Build request for Ollama HTTP API
             Map<String, Object> requestBody = new HashMap<>();
@@ -114,7 +115,7 @@ public class AIValidationService {
             // CLI
             // as a simpler alternative to HTTP requests (works with local ollama
             // installations)
-            return callOllamaCLI(base64Image);
+            return callOllamaCLI(base64Image, description);
         } catch (Exception e) {
             throw new IOException("Failed to call Ollama API: " + e.getMessage(), e);
         }
@@ -124,11 +125,11 @@ public class AIValidationService {
      * Alternative method using Ollama CLI directly for local instances.
      * This approach is more reliable for local development.
      */
-    private String callOllamaCLI(String base64Image) throws IOException {
+    private String callOllamaCLI(String base64Image, String description) throws IOException {
         try {
             // Create a temporary image file or use process input
             // For now, we'll skip the CLI approach and use HTTP
-            return callOllamaHTTP(base64Image);
+            return callOllamaHTTP(base64Image, description);
         } catch (Exception e) {
             throw new IOException("Failed to execute Ollama: " + e.getMessage(), e);
         }
@@ -137,11 +138,16 @@ public class AIValidationService {
     /**
      * Calls Ollama using HTTP API (requires Ollama running with API enabled).
      */
-    private String callOllamaHTTP(String base64Image) throws IOException {
+    private String callOllamaHTTP(String base64Image, String description) throws IOException {
         try {
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("model", ollamaModel);
-            requestBody.put("prompt", "Analyze this environmental image for issues.");
+            String prompt = String.format(
+                    "Analyze this environmental image for issues.\n" +
+                            "User's description: %s\n" +
+                            "Verify that the user's description accurately matches what is shown in the image.",
+                    description);
+            requestBody.put("prompt", prompt);
             requestBody.put("images", new String[] { base64Image });
             requestBody.put("stream", false);
 

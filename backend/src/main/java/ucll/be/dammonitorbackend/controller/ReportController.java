@@ -73,7 +73,7 @@ public class ReportController {
 
     @GetMapping
     public ResponseEntity<List<ReportResponse>> listReports() {
-        List<ReportResponse> reports = reportService.findAllReports().stream()
+        List<ReportResponse> reports = reportService.findApprovedReports().stream()
                 .map(this::toResponse)
                 .toList();
         return ResponseEntity.ok(reports);
