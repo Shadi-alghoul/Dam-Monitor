@@ -244,6 +244,36 @@
   margin-bottom: 20px;
 }
 
+/* Preview Info Section */
+.preview-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-row strong {
+  font-weight: 600;
+  color: #555;
+  font-size: 14px;
+}
+
+.info-row span {
+  color: #333;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.preview-image {
+  flex-shrink: 0;
+}
+
 /* Action Buttons */
 .action-buttons {
   display: flex;

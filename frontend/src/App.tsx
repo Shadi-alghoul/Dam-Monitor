@@ -5,7 +5,7 @@ import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ReportPage from "./pages/ReportPage";
-import ReportStatusPage from "./pages/ReportPage";
+import ReportStatusPage from "./pages/ReportStatusPage";
 import CommunityReportsPage from "./pages/CommunityReportsPage";
 
 export default function App() {
@@ -34,7 +34,7 @@ export default function App() {
         }
       />
       <Route
-        path="/report/:reportId"
+        path="/report-status/:reportId"
         element={
           <ProtectedRoute>
             <ReportStatusPage />

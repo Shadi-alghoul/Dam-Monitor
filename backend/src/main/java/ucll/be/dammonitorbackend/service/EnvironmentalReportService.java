@@ -3,7 +3,6 @@ package ucll.be.dammonitorbackend.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import ucll.be.dammonitorbackend.exception.ImageRejectedByAIException;
 import ucll.be.dammonitorbackend.model.EnvironmentalReport;
 import ucll.be.dammonitorbackend.model.ProblemType;
 import ucll.be.dammonitorbackend.repository.EnvironmentalReportRepository;
@@ -41,27 +40,9 @@ public class EnvironmentalReportService {
 
         validate(file, description, problemType, latitude, longitude);
 
-        // 🔥 Validate image FIRST
+        // Validate image with AI model BEFORE uploading
         AIValidationService.ValidationResult validationResult = aiValidationService.validateImage(file);
 
-        if (!validationResult.approved()) {
-            EnvironmentalReport rejectedReport = new EnvironmentalReport();
-            rejectedReport.setDescription(description.trim());
-            rejectedReport.setProblemType(problemType);
-            rejectedReport.setLatitude(latitude);
-            rejectedReport.setLongitude(longitude);
-            rejectedReport.setSatelliteImageUrl(satelliteImageUrl);
-            rejectedReport.setSatelliteTakenAt(satelliteTakenAt);
-            rejectedReport.setPixelX(pixelX);
-            rejectedReport.setPixelY(pixelY);
-
-            rejectedReport.setAiApproved(false);
-            rejectedReport.setAiRejectionReason(validationResult.reason());
-
-            return rejectedReport; // NOT saved
-        }
-
-        // ✅ Only upload if approved
         ImageStorageService.StoredImage storedImage = imageStorageService.uploadImage(file);
 
         EnvironmentalReport report = new EnvironmentalReport();
@@ -76,7 +57,11 @@ public class EnvironmentalReportService {
         report.setPixelX(pixelX);
         report.setPixelY(pixelY);
 
-        report.setAiApproved(true);
+        // Set AI validation results
+        report.setAiApproved(validationResult.approved());
+        if (!validationResult.approved()) {
+            report.setAiRejectionReason(validationResult.reason());
+        }
 
         return reportRepository.save(report);
     }

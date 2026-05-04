@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import ucll.be.dammonitorbackend.exception.ImageRejectedByAIException;
 import ucll.be.dammonitorbackend.model.EnvironmentalReport;
 import ucll.be.dammonitorbackend.model.ProblemType;
 import ucll.be.dammonitorbackend.service.EnvironmentalReportService;
@@ -65,9 +64,6 @@ public class ReportController {
 
             return ResponseEntity.ok(toResponse(saved));
 
-        } catch (ImageRejectedByAIException ex) {
-            throw new ResponseStatusException(BAD_REQUEST,
-                    "Image rejected by AI validation: " + ex.getRejectionReason(), ex);
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(BAD_REQUEST, ex.getMessage(), ex);
         } catch (IOException ex) {

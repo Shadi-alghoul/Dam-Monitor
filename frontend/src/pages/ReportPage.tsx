@@ -273,57 +273,80 @@ export default function ReportPage() {
   }
 
   async function onReportSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setUploadError(null);
-    setUploadSuccess(null);
-    setSubmissionResult(null);
+  event.preventDefault();
 
-    if (!selectedFile) {
-      setUploadError("Please select an image file.");
-      return;
-    }
-    if (!description.trim()) {
-      setUploadError("Please add a short description.");
-      return;
-    }
+  setUploadError(null);
+  setUploadSuccess(null);
+  setSubmissionResult(null);
 
-    setSubmitting(true);
-    try {
-      const result = await uploadReport({
-        file: selectedFile,
-        description,
-        problemType,
-        satelliteImageUrl: satelliteImageSrc || undefined,
-        satelliteTakenAt: satelliteTakenAt || undefined,
-        latitude: selectedCoordinates?.lat,
-        longitude: selectedCoordinates?.lon,
-        pixelX: selectedSatellitePixel?.x,
-        pixelY: selectedSatellitePixel?.y,
-      });
-
-      // Cleanup preview URL
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-      setImagePreviewUrl(null);
-
-      // Reset form
-      setSelectedFile(null);
-      setDescription("");
-      setProblemType("POLLUTION");
-
-      // Always redirect to status page — it handles both approved and rejected
-      setUploadSuccess("Report submitted! Redirecting to verification page...");
-      setTimeout(() => {
-        navigate(`/report/${result.id}`);
-      }, 500);
-    } catch (err) {
-      // Backend returned no usable report object at all — show error in place
-      setUploadError(err instanceof Error ? err.message : "Failed to submit report.");
-    } finally {
-      setSubmitting(false);
-    }
+  if (!selectedFile) {
+    setUploadError("Please select an image file.");
+    return;
   }
+
+  if (!description.trim()) {
+    setUploadError("Please add a short description.");
+    return;
+  }
+
+  setSubmitting(true);
+
+  try {
+    const result = await uploadReport({
+      file: selectedFile,
+      description,
+      problemType,
+      satelliteImageUrl: satelliteImageSrc || undefined,
+      satelliteTakenAt: satelliteTakenAt || undefined,
+      latitude: selectedCoordinates?.lat,
+      longitude: selectedCoordinates?.lon,
+      pixelX: selectedSatellitePixel?.x,
+      pixelY: selectedSatellitePixel?.y,
+    });
+
+    // Store validation result
+    setSubmissionResult({
+      approved: result.aiApproved === true,
+      reason: result.aiRejectionReason
+    });
+
+    // Cleanup preview URL
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+
+    setImagePreviewUrl(null);
+
+    // Reset form
+    setSelectedFile(null);
+    setDescription("");
+    setProblemType("POLLUTION");
+
+    if (result.id) {
+      // Report saved (both approved and rejected)
+      setUploadSuccess(
+        result.aiApproved === true
+          ? "Report approved and saved. Redirecting..."
+          : "Report analyzed. Redirecting to validation results..."
+      );
+
+      setTimeout(() => {
+        navigate(`/report-status/${result.id}`);
+      }, 500);
+    } else {
+      setUploadError("Report was processed but could not be saved. Please try again.");
+    }
+
+  } catch (err) {
+    setUploadError(
+      err instanceof Error
+        ? err.message
+        : "Failed to submit report."
+    );
+  } finally {
+    setSubmitting(false);
+  }
+}
 
   return (
     <main className="dashboard-page">
