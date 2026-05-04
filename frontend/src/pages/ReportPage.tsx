@@ -15,6 +15,7 @@ const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
 
 
 {}  
+ 
 interface PinPosition {
   leftFraction: number;
   topFraction: number;
