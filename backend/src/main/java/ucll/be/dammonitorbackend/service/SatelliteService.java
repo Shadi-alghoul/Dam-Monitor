@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,11 +67,6 @@ public class SatelliteService {
     private static final double BBOX_MIN_LAT = -25.77346;
     private static final double BBOX_MAX_LON = 27.907053;
     private static final double BBOX_MAX_LAT = -25.723519;
-
-    // ── Output image dimensions ───────────────────────────────────────────────
-
-    private static final int IMAGE_WIDTH = 1920;
-    private static final int IMAGE_HEIGHT = 1080;
 
     // ── Catalogue lookback window ─────────────────────────────────────────────
     // How many days back to search when looking for the latest cloud-free scene.
