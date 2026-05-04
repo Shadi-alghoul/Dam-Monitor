@@ -10,17 +10,21 @@ import ucll.be.dammonitorbackend.repository.EnvironmentalReportRepository;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class EnvironmentalReportService {
 
     private final EnvironmentalReportRepository reportRepository;
     private final ImageStorageService imageStorageService;
+    private final AIValidationService aiValidationService;
 
     public EnvironmentalReportService(EnvironmentalReportRepository reportRepository,
-            ImageStorageService imageStorageService) {
+            ImageStorageService imageStorageService,
+            AIValidationService aiValidationService) {
         this.reportRepository = reportRepository;
         this.imageStorageService = imageStorageService;
+        this.aiValidationService = aiValidationService;
     }
 
     @Transactional
@@ -36,6 +40,9 @@ public class EnvironmentalReportService {
 
         validate(file, description, problemType, latitude, longitude);
 
+        // Validate image with AI model BEFORE uploading
+        AIValidationService.ValidationResult validationResult = aiValidationService.validateImage(file, description);
+
         ImageStorageService.StoredImage storedImage = imageStorageService.uploadImage(file);
 
         EnvironmentalReport report = new EnvironmentalReport();
@@ -50,6 +57,12 @@ public class EnvironmentalReportService {
         report.setPixelX(pixelX);
         report.setPixelY(pixelY);
 
+        // Set AI validation results
+        report.setAiApproved(validationResult.approved());
+        if (!validationResult.approved()) {
+            report.setAiRejectionReason(validationResult.reason());
+        }
+
         return reportRepository.save(report);
     }
 
@@ -57,8 +70,16 @@ public class EnvironmentalReportService {
         return reportRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    public List<EnvironmentalReport> findApprovedReports() {
+        return reportRepository.findAllByAiApprovedTrueOrderByCreatedAtDesc();
+    }
+
+    public Optional<EnvironmentalReport> findReportById(Long id) {
+        return reportRepository.findById(id);
+    }
+
     // -------------------------------------------------------------------------
-    //  Validation
+    // Validation
     // -------------------------------------------------------------------------
 
     private static void validate(MultipartFile file,

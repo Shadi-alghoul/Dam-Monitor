@@ -22,6 +22,15 @@ export async function fetchReports(): Promise<EnvironmentalReport[]> {
   return (await response.json()) as EnvironmentalReport[];
 }
 
+export async function fetchReport(reportId: string | number): Promise<EnvironmentalReport> {
+  const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch report from backend.");
+  }
+
+  return (await response.json()) as EnvironmentalReport;
+}
+
 export async function uploadReport(payload: {
   file: File;
   description: string;

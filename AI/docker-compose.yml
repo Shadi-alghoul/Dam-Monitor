@@ -1,0 +1,94 @@
+version: "3.8"
+
+# Dam Monitor - AI Environmental Report Validation System
+#
+# This compose file sets up:
+# - PostgreSQL database for report storage
+# - Ollama AI service for environmental image classification
+#
+# Documentation:
+#   - QUICK_START.md - 3-step quick setup
+#   - OLLAMA_CUSTOM_PORT_SETUP.md - Complete setup guide
+#   - AI_VALIDATION_SETUP.md - Technical deep-dive
+#
+# Run from AI folder:
+#   docker-compose up -d
+
+services:
+  # PostgreSQL Database - stores dam reports and validation data
+  postgres:
+    image: postgres:15-alpine
+    container_name: dam-monitor-db
+    environment:
+      POSTGRES_DB: dammonitor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama AI Model Service - environmental classification
+  #
+  # Custom model configuration: env-classifier
+  # Model definition: Modelfile (based on gemma3:12b)
+  # Function: Analyzes images for environmental issues
+  #   - pollution, algae blooms, wildlife distress
+  #   - illegal dumping, infrastructure damage, other issues
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dam-monitor-ollama
+    environment:
+      # Custom port for Ollama API
+      OLLAMA_HOST: 0.0.0.0:11435
+    ports:
+      - "11435:11435"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./Modelfile:/tmp/Modelfile:ro
+    # Initialize with env-classifier custom model
+    command: bash -c "ollama create env-classifier -f /tmp/Modelfile && ollama serve"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+  ollama_data:
+    driver: local
+
+# Usage:
+#   From AI folder:
+#   docker-compose up -d
+#
+# Services will be available at:
+#   - PostgreSQL: localhost:5432
+#   - Ollama API: localhost:11435
+#
+# Backend configuration should use:
+#   - DB_URL=jdbc:postgresql://postgres:5432/dammonitor
+#   - OLLAMA_BASE_URL=http://ollama:11435
+#
+# Start scripts available:
+#   - Windows PowerShell: ..\start-ollama.ps1
+#   - Windows Command Prompt: ..\start-ollama.bat
+#   - Linux/macOS: ..\start-ollama.sh
+#
+# Verify Ollama connection:
+#   - Windows: ..\verify-ollama.ps1
+#   - Check logs: docker-compose logs -f ollama
+#
+# Stop all services:
+#   docker-compose down
+#
+# View logs:
+#   docker-compose logs -f
+#
+# View specific service logs:
+#   docker-compose logs -f ollama
+#   docker-compose logs -f postgres
