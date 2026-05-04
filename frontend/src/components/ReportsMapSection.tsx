@@ -4,12 +4,17 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { EnvironmentalReport, ProblemType } from "../types";
 import HeatmapLayer from "./HeatmapLayer";
+import ZoneOverlayLayer from "./ZoneOverlayLayer";
+import { countReportsByZone, ALERT_THRESHOLD } from "../lib/zones";
+
 // ── Constants ──────────────────────────────────────────────────────────────
 const DAM_CENTER: [number, number] = [-25.748, 27.848];
 const DAM_ZOOM = 13;
+const DAM_MIN_ZOOM = 13;
+
 const DAM_BOUNDS: L.LatLngBoundsExpression = [
-  [-25.77346, 27.78822],
-  [-25.723519, 27.907053]
+  [-25.778, 27.784],
+  [-25.720, 27.912],
 ];
 
 const PROBLEM_COLORS: Record<ProblemType, string> = {
@@ -18,7 +23,7 @@ const PROBLEM_COLORS: Record<ProblemType, string> = {
   WILDLIFE_DISTRESS: "#f97316",
   ILLEGAL_DUMPING: "#a855f7",
   INFRASTRUCTURE_DAMAGE: "#eab308",
-  OTHER: "#3b82f6"
+  OTHER: "#3b82f6",
 };
 
 const PROBLEM_LABELS: Record<ProblemType, string> = {
@@ -27,7 +32,7 @@ const PROBLEM_LABELS: Record<ProblemType, string> = {
   WILDLIFE_DISTRESS: "Wildlife Distress",
   ILLEGAL_DUMPING: "Illegal Dumping",
   INFRASTRUCTURE_DAMAGE: "Infrastructure Damage",
-  OTHER: "Other"
+  OTHER: "Other",
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -49,7 +54,7 @@ function createPinIcon(type: ProblemType): L.DivIcon {
     className: "",
     iconSize: [28, 42],
     iconAnchor: [14, 42],
-    popupAnchor: [0, -46]
+    popupAnchor: [0, -46],
   });
 }
 
@@ -81,6 +86,10 @@ interface Props {
 
 export default function ReportsMapSection({ reports }: Props) {
   const [filterType, setFilterType] = useState<ProblemType | "">("");
+  const [showZones, setShowZones] = useState(true);
+
+  // Zone counts (always based on all reports, not just filtered)
+  const zoneCounts = useMemo(() => countReportsByZone(reports), [reports]);
 
   // Filter reports for the map (only those with coordinates)
   const filteredReports = useMemo(() => {
@@ -100,7 +109,7 @@ export default function ReportsMapSection({ reports }: Props) {
 
   return (
     <section className="panel">
-            <div className="section-header">
+      <div className="section-header">
         <h2 className="section-title">Report locations</h2>
 
         <div className="filter-group">
@@ -116,15 +125,20 @@ export default function ReportsMapSection({ reports }: Props) {
               <option value="">All Types</option>
               {Object.entries(PROBLEM_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
-                  <span 
-                    className="option-dot" 
-                    style={{ backgroundColor: PROBLEM_COLORS[value as ProblemType] }}
-                  ></span>
                   {label}
                 </option>
               ))}
             </select>
           </div>
+
+          {/* Zone toggle */}
+          <button
+            className={`zone-toggle-btn ${showZones ? "zone-toggle-btn--active" : ""}`}
+            onClick={() => setShowZones((v) => !v)}
+            title="Toggle zone overlays"
+          >
+            {showZones ? "Hide Zones" : "Show Zones"}
+          </button>
         </div>
       </div>
 
@@ -134,8 +148,40 @@ export default function ReportsMapSection({ reports }: Props) {
           : `Showing ${filteredReports.length} pinned report${filteredReports.length !== 1 ? "s" : ""} on the map.`}
       </p>
 
+      {/* Zone summary strip */}
+      {showZones && (
+        <div className="zone-summary-strip">
+          {zoneCounts.map(({ zone, count }) => {
+            const isAlert = count >= ALERT_THRESHOLD;
+            return (
+              <div
+                key={zone.id}
+                className={`zone-chip ${isAlert ? "zone-chip--alert" : ""}`}
+                style={{ "--zc": zone.color } as React.CSSProperties}
+              >
+                <span className="zone-chip__dot" style={{ background: zone.color }} />
+                <span className="zone-chip__label">{zone.label}</span>
+                <span className="zone-chip__count" style={{ color: zone.color }}>
+                  {count}
+                </span>
+                {isAlert && <span className="zone-chip__warn">⚠</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="report-map-wrapper">
-        <MapContainer center={DAM_CENTER} zoom={DAM_ZOOM} className="report-map" scrollWheelZoom maxBounds={DAM_BOUNDS} maxBoundsViscosity={1.0} minZoom={12}>
+        <MapContainer
+          center={DAM_CENTER}
+          zoom={DAM_ZOOM}
+          className="report-map"
+          scrollWheelZoom
+          maxBounds={DAM_BOUNDS}
+          maxBoundsViscosity={1.0}
+          minZoom={DAM_MIN_ZOOM}
+          maxZoom={18}
+        >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -143,6 +189,10 @@ export default function ReportsMapSection({ reports }: Props) {
 
           <MapAutoFit reports={filteredReports} />
           <HeatmapLayer reports={filteredReports} />
+
+          {showZones && (
+            <ZoneOverlayLayer zoneCounts={zoneCounts} threshold={ALERT_THRESHOLD} />
+          )}
 
           {filteredReports.map((report) => (
             <Marker
@@ -178,7 +228,7 @@ export default function ReportsMapSection({ reports }: Props) {
         </MapContainer>
       </div>
 
-      {/* Colour legend - still shows all types for reference */}
+      {/* Colour legend */}
       <div className="map-legend">
         {(Object.entries(PROBLEM_COLORS) as [ProblemType, string][]).map(([type, color]) => (
           <span key={type} className="map-legend__item">

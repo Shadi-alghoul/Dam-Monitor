@@ -55,13 +55,14 @@ export default function ReportPage() {
   const touchRef = useRef<{ dist: number; midX: number; midY: number } | null>(null);
 
   // Hartbeespoort Dam satellite image bounds
+
   const HARTBEESPOORT_BOUNDS = {
     minLon: 27.78822,
     minLat: -25.77346,
     maxLon: 27.907053,
     maxLat: -25.723519,
-    width: satelliteResolution?.width ?? 1188,
-    height: satelliteResolution?.height ?? 499
+    width: satelliteResolution?.width ?? 1,
+    height: satelliteResolution?.height ?? 1
   };
 
   function resetZoom() {
