@@ -2,11 +2,7 @@ package ucll.be.dammonitorbackend.controller;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import ucll.be.dammonitorbackend.model.EnvironmentalReport;
@@ -16,12 +12,14 @@ import ucll.be.dammonitorbackend.service.EnvironmentalReportService;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 @RestController
 @RequestMapping("/api/reports")
+@CrossOrigin(origins = "http://localhost:5173")
 public class ReportController {
 
     private final EnvironmentalReportService reportService;
@@ -106,5 +104,10 @@ public class ReportController {
             Integer pixelX,
             Integer pixelY,
             Instant createdAt) {
+    }
+
+    @GetMapping(value = "/pollution-trend", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<Map<String, Object>>> getPollutionTrend() {
+        return ResponseEntity.ok(reportService.getPollutionTrend());
     }
 }

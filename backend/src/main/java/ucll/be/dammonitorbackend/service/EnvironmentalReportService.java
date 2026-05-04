@@ -9,7 +9,7 @@ import ucll.be.dammonitorbackend.repository.EnvironmentalReportRepository;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class EnvironmentalReportService {
@@ -93,5 +93,34 @@ public class EnvironmentalReportService {
         if (longitude != null && (longitude < -180 || longitude > 180)) {
             throw new IllegalArgumentException("Longitude must be between -180 and 180.");
         }
+    }
+
+    public List<Map<String, Object>> getPollutionTrend() {
+        List<EnvironmentalReport> reports = reportRepository.findAll();
+
+        Map<String, Integer> monthlyCounts = new TreeMap<>();
+
+        for (EnvironmentalReport report : reports) {
+            if (report.getProblemType() == ProblemType.POLLUTION && report.getCreatedAt() != null) {
+
+                String day = report.getCreatedAt()
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalDate()
+                        .toString(); // yyyy-MM-dd
+
+                monthlyCounts.put(day, monthlyCounts.getOrDefault(day, 0) + 1);
+            }
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (Map.Entry<String, Integer> entry : monthlyCounts.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("date", entry.getKey());
+            item.put("pollution", entry.getValue());
+            result.add(item);
+        }
+
+        return result;
     }
 }
