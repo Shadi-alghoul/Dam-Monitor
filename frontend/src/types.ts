@@ -24,4 +24,6 @@ export type EnvironmentalReport = {
   longitude?: number;
   pixelX?: number;
   pixelY?: number;
+  aiApproved: boolean;
+  aiRejectionReason?: string;
 };

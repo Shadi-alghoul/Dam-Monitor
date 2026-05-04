@@ -13,7 +13,6 @@ const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
   { value: "OTHER", label: "Other" }
 ];
 
- 
 interface PinPosition {
   leftFraction: number;
   topFraction: number;
@@ -40,6 +39,10 @@ export default function ReportPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<{
+    approved: boolean;
+    reason?: string;
+  } | null>(null);
 
   const [pinPosition, setPinPosition] = useState<PinPosition | null>(null);
 
@@ -273,6 +276,7 @@ export default function ReportPage() {
     event.preventDefault();
     setUploadError(null);
     setUploadSuccess(null);
+    setSubmissionResult(null);
 
     if (!selectedFile) {
       setUploadError("Please select an image file.");
@@ -285,7 +289,7 @@ export default function ReportPage() {
 
     setSubmitting(true);
     try {
-      await uploadReport({
+      const result = await uploadReport({
         file: selectedFile,
         description,
         problemType,
@@ -294,13 +298,8 @@ export default function ReportPage() {
         latitude: selectedCoordinates?.lat,
         longitude: selectedCoordinates?.lon,
         pixelX: selectedSatellitePixel?.x,
-        pixelY: selectedSatellitePixel?.y
+        pixelY: selectedSatellitePixel?.y,
       });
-
-      setSelectedFile(null);
-      setDescription("");
-      setProblemType("POLLUTION");
-      setUploadSuccess("Report submitted successfully. Redirecting to dashboard...");
 
       // Cleanup preview URL
       if (imagePreviewUrl) {
@@ -308,11 +307,18 @@ export default function ReportPage() {
       }
       setImagePreviewUrl(null);
 
-      // Redirect to dashboard after 2 seconds
+      // Reset form
+      setSelectedFile(null);
+      setDescription("");
+      setProblemType("POLLUTION");
+
+      // Always redirect to status page — it handles both approved and rejected
+      setUploadSuccess("Report submitted! Redirecting to verification page...");
       setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
+        navigate(`/report/${result.id}`);
+      }, 500);
     } catch (err) {
+      // Backend returned no usable report object at all — show error in place
       setUploadError(err instanceof Error ? err.message : "Failed to submit report.");
     } finally {
       setSubmitting(false);
@@ -486,7 +492,7 @@ export default function ReportPage() {
               onChange={(event) => {
                 const file = event.target.files?.[0] ?? null;
                 setSelectedFile(file);
-                
+
                 // Clean up old preview URL and create new one
                 if (imagePreviewUrl) {
                   URL.revokeObjectURL(imagePreviewUrl);
@@ -559,35 +565,62 @@ export default function ReportPage() {
             {submitting ? "Submitting..." : "Submit report"}
           </button>
 
-          {uploadError ? <p className="form-error">{uploadError}</p> : null}
-          {uploadSuccess ? <p className="form-success">{uploadSuccess}</p> : null}
+          {uploadError && (
+            <div className="form-error" style={{
+              backgroundColor: "#fee2e2",
+              border: "1px solid #fecaca",
+              borderRadius: "0.5rem",
+              padding: "1rem",
+              marginTop: "1rem"
+            }}>
+              <p style={{ margin: 0, fontWeight: "600" }}>❌ Submission Issue</p>
+              <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.95rem" }}>{uploadError}</p>
+              {submissionResult?.reason && (
+                <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.9rem", color: "#991b1b", fontStyle: "italic" }}>
+                  Reason: {submissionResult.reason}
+                </p>
+              )}
+            </div>
+          )}
+
+          {uploadSuccess && (
+            <div className="form-success" style={{
+              backgroundColor: "#dcfce7",
+              border: "1px solid #bbf7d0",
+              borderRadius: "0.5rem",
+              padding: "1rem",
+              marginTop: "1rem"
+            }}>
+              <p style={{ margin: 0, fontWeight: "600" }}>{uploadSuccess}</p>
+            </div>
+          )}
         </form>
 
         {/* Summary section showing tagged location with uploaded image */}
         {selectedCoordinates && selectedSatellitePixel && imagePreviewUrl && (
-          <div style={{ 
-            marginTop: "2rem", 
-            padding: "1.5rem", 
-            backgroundColor: "#f0fdf4", 
-            border: "2px solid #86efac", 
+          <div style={{
+            marginTop: "2rem",
+            padding: "1.5rem",
+            backgroundColor: "#f0fdf4",
+            border: "2px solid #86efac",
             borderRadius: "0.5rem"
           }}>
             <h3 style={{ marginTop: 0, color: "#166534" }}>📍 Report Summary</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <div>
                 <p style={{ fontSize: "0.9rem", fontWeight: "600", margin: "0 0 0.5rem 0" }}>Tagged Location:</p>
-                <div style={{ 
-                  backgroundColor: "white", 
-                  padding: "0.75rem", 
-                  borderRadius: "0.25rem", 
+                <div style={{
+                  backgroundColor: "white",
+                  padding: "0.75rem",
+                  borderRadius: "0.25rem",
                   border: "1px solid #bbf7d0"
                 }}>
                   <p style={{ margin: "0.25rem 0", fontSize: "0.85rem", color: "#000" }}>
-                    <strong>Coordinates:</strong><br/>
+                    <strong>Coordinates:</strong><br />
                     {selectedCoordinates.lat.toFixed(6)}, {selectedCoordinates.lon.toFixed(6)}
                   </p>
                   <p style={{ margin: "0.25rem 0", fontSize: "0.85rem", color: "#000" }}>
-                    <strong>Pixel Position:</strong><br/>
+                    <strong>Pixel Position:</strong><br />
                     ({selectedSatellitePixel.x}, {selectedSatellitePixel.y})
                   </p>
                   <p style={{ margin: "0.5rem 0 0 0", color: "#000" }}>

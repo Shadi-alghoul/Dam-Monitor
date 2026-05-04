@@ -1,7 +1,6 @@
 import type { EnvironmentalReport, ProblemType } from "../types";
 
 const explicitApiBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
-
 export const API_BASE_URL = (explicitApiBase ?? "").replace(/\/$/, "");
 
 export async function fetchImageNames(): Promise<string[]> {
@@ -9,7 +8,6 @@ export async function fetchImageNames(): Promise<string[]> {
   if (!response.ok) {
     throw new Error("Failed to fetch image list from backend.");
   }
-
   return (await response.json()) as string[];
 }
 
@@ -18,8 +16,15 @@ export async function fetchReports(): Promise<EnvironmentalReport[]> {
   if (!response.ok) {
     throw new Error("Failed to fetch reports from backend.");
   }
-
   return (await response.json()) as EnvironmentalReport[];
+}
+
+export async function fetchReport(reportId: string | number): Promise<EnvironmentalReport> {
+  const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch report from backend.");
+  }
+  return (await response.json()) as EnvironmentalReport;
 }
 
 export async function uploadReport(payload: {
@@ -41,24 +46,37 @@ export async function uploadReport(payload: {
   if (payload.longitude != null) formData.append("longitude", String(payload.longitude));
   if (payload.pixelX != null) formData.append("pixelX", String(payload.pixelX));
   if (payload.pixelY != null) formData.append("pixelY", String(payload.pixelY));
-  if (payload.satelliteImageUrl) {
-    formData.append("satelliteImageUrl", payload.satelliteImageUrl);
-  }
-  if (payload.satelliteTakenAt) {
-    formData.append("satelliteTakenAt", payload.satelliteTakenAt);
-  }
-  
+  if (payload.satelliteImageUrl) formData.append("satelliteImageUrl", payload.satelliteImageUrl);
+  if (payload.satelliteTakenAt) formData.append("satelliteTakenAt", payload.satelliteTakenAt);
+
   const response = await fetch(`${API_BASE_URL}/api/reports/upload`, {
     method: "POST",
-    body: formData
+    body: formData,
   });
 
-  if (!response.ok) {
-    const errorMessage = await response.text();
-    throw new Error(errorMessage || "Failed to upload report.");
+  // Always try to parse the response body first
+  let reportData: EnvironmentalReport | null = null;
+  try {
+    const text = await response.text();
+    if (text) reportData = JSON.parse(text) as EnvironmentalReport;
+  } catch {
+    // couldn't parse
   }
 
-  return (await response.json()) as EnvironmentalReport;
+  if (!response.ok) {
+    // If backend returned a saved report object (even on rejection), return it so
+    // the caller can redirect to the status page instead of showing an inline error.
+    if (reportData && reportData.id) {
+      return reportData;
+    }
+    const errorMessage =
+      (reportData as any)?.message ||
+      (reportData as any)?.error ||
+      "Failed to upload report.";
+    throw new Error(errorMessage);
+  }
+
+  return reportData!;
 }
 
 export async function fetchSatelliteSnapshot(cacheBuster: number): Promise<{
@@ -70,12 +88,11 @@ export async function fetchSatelliteSnapshot(cacheBuster: number): Promise<{
   if (!response.ok) {
     throw new Error("Failed to fetch live satellite image from backend.");
   }
-
   const imageBlob = await response.blob();
   return {
     objectUrl: URL.createObjectURL(imageBlob),
     acquiredAt: response.headers.get("X-Image-Date"),
-    sourceCollection: response.headers.get("X-Image-Collection")
+    sourceCollection: response.headers.get("X-Image-Collection"),
   };
 }
 
