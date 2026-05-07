@@ -54,13 +54,22 @@ public class EnvironmentalReport {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(nullable = true)
+    private Boolean aiApproved = false;
+
+    @Column(length = 1000)
+    private String aiRejectionReason;
+
     @PrePersist
     void onCreate() {
         if (createdAt == null) {
             createdAt = Instant.now();
         }
+        if (aiApproved == null) {
+            aiApproved = false;
+        }
     }
-    
+
     public Long getId() {
         return id;
     }
@@ -147,5 +156,21 @@ public class EnvironmentalReport {
 
     public void setPixelY(Integer pixelY) {
         this.pixelY = pixelY;
+    }
+
+    public Boolean getAiApproved() {
+        return aiApproved;
+    }
+
+    public void setAiApproved(Boolean aiApproved) {
+        this.aiApproved = aiApproved;
+    }
+
+    public String getAiRejectionReason() {
+        return aiRejectionReason;
+    }
+
+    public void setAiRejectionReason(String aiRejectionReason) {
+        this.aiRejectionReason = aiRejectionReason;
     }
 }

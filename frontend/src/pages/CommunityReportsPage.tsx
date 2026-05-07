@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchReports } from "../lib/api";
 import PageHeader from "../components/PageHeader";
 import ReportsMapSection from "../components/ReportsMapSection";
+import AlertsBanner from "../components/AlertsBanner";
 import type { EnvironmentalReport, ProblemType } from "../types";
 
 const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
@@ -11,7 +12,7 @@ const PROBLEM_TYPES: Array<{ value: ProblemType; label: string }> = [
   { value: "WILDLIFE_DISTRESS", label: "Wildlife distress" },
   { value: "ILLEGAL_DUMPING", label: "Illegal dumping" },
   { value: "INFRASTRUCTURE_DAMAGE", label: "Infrastructure damage" },
-  { value: "OTHER", label: "Other" }
+  { value: "OTHER", label: "Other" },
 ];
 
 export default function CommunityReportsPage() {
@@ -59,6 +60,9 @@ export default function CommunityReportsPage() {
     <main className="dashboard-page">
       <PageHeader title="Community Reports" />
 
+      {/* ── Zone concentration alerts ─────────────────────────────────── */}
+      {!loadingReports && <AlertsBanner reports={reports} />}
+
       <section className="panel">
         <h2>Report environmental issue</h2>
         <p>Found an environmental issue at the dam? Report it now!</p>
@@ -67,7 +71,7 @@ export default function CommunityReportsPage() {
         </button>
       </section>
 
-      {/* ── Map section: shows all geo-tagged reports as coloured pins ─────── */}
+      {/* ── Map section: shows all geo-tagged reports as coloured pins ── */}
       <ReportsMapSection reports={reports} />
 
       <section className="panel">
@@ -113,7 +117,9 @@ export default function CommunityReportsPage() {
                 </p>
               )}
               {report.satelliteTakenAt && (
-                <p className="report-meta">Satellite image: {new Date(report.satelliteTakenAt).toLocaleString()}</p>
+                <p className="report-meta">
+                  Satellite image: {new Date(report.satelliteTakenAt).toLocaleString()}
+                </p>
               )}
               <p className="report-meta">Reported: {new Date(report.createdAt).toLocaleString()}</p>
             </article>

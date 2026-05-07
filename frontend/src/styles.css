@@ -615,3 +615,289 @@ textarea:focus {
 .custom-select select {
   padding-left: 1.1rem;
 }
+
+/* ── Alerts container ───────────────────────────────────────────────────── */
+.alerts-container {
+  border-radius: 1rem;
+  background: rgba(10, 16, 30, 0.92);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.75rem;
+  animation: slideFade 380ms ease;
+  box-shadow: 0 0 28px rgba(251, 191, 36, 0.08);
+}
+
+.alerts-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.alerts-icon {
+  font-size: 1.15rem;
+  color: #fbbf24;
+  line-height: 1;
+  animation: pulse-warn 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse-warn {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+.alerts-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #fde68a;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.alerts-subtitle {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  margin-left: auto;
+}
+
+.alerts-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+/* ── Individual alert card ──────────────────────────────────────────────── */
+.alert-card {
+  display: flex;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.8);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.alert-card--visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.alert-card__stripe {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.alert-card__body {
+  flex: 1;
+  padding: 0.7rem 0.9rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.alert-card__top {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.alert-card__zone-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1.5px solid;
+  border-radius: 0.35rem;
+  padding: 1px 6px;
+  line-height: 1.5;
+}
+
+.alert-card__desc {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.alert-card__dismiss {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #475569;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.3rem;
+  transition: color 150ms ease, background 150ms ease;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.alert-card__dismiss:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.08);
+  transform: none;
+  filter: none;
+}
+
+.alert-card__message {
+  font-size: 0.86rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.alert-card__type {
+  font-style: italic;
+  color: #94a3b8;
+}
+
+.alert-card__breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.alert-card__pill {
+  font-size: 0.72rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #94a3b8;
+  text-transform: capitalize;
+}
+
+/* ── Zone toggle button ─────────────────────────────────────────────────── */
+.zone-toggle-btn {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.zone-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  transform: none;
+  filter: none;
+}
+
+.zone-toggle-btn--active {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+/* ── Zone summary strip ─────────────────────────────────────────────────── */
+.zone-summary-strip {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.zone-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.6rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  transition: border-color 200ms ease;
+}
+
+.zone-chip--alert {
+  border-color: var(--zc, rgba(255,255,255,0.2));
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  animation: chip-glow 2.8s ease-in-out infinite;
+}
+
+@keyframes chip-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(0,0,0,0.3); }
+  50%       { box-shadow: 0 0 14px rgba(0,0,0,0.5); }
+}
+
+.zone-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.zone-chip__label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.zone-chip__count {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.zone-chip__warn {
+  font-size: 0.78rem;
+  color: #fbbf24;
+  animation: pulse-warn 2.4s ease-in-out infinite;
+}
+
+/* ── Leaflet zone labels ────────────────────────────────────────────────── */
+.zone-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(5, 10, 20, 0.82);
+  border: 1.5px solid var(--zc, #fff);
+  border-radius: 0.5rem;
+  padding: 4px 10px;
+  backdrop-filter: blur(4px);
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.zone-label__name {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--zc, #fff);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.zone-label__count {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.zone-label--alert .zone-label__count {
+  color: #fde68a;
+}
+
+.zone-label__warn {
+  font-size: 0.68rem;
+  color: #fbbf24;
+  line-height: 1;
+}
+
+@media (max-width: 720px) {
+  .alerts-subtitle {
+    display: none;
+  }
+  .zone-summary-strip {
+    gap: 0.4rem;
+  }
+  .zone-chip {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.76rem;
+  }
+}

@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface EnvironmentalReportRepository extends JpaRepository<EnvironmentalReport, Long> {
     List<EnvironmentalReport> findAllByOrderByCreatedAtDesc();
+
+    List<EnvironmentalReport> findAllByAiApprovedTrueOrderByCreatedAtDesc();
 }
