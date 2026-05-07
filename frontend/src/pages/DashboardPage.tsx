@@ -259,7 +259,7 @@ export default function DashboardPage() {
       </section>
       
       <section className="panel">
-  <h2>Plastic Pollution Levels Over Time</h2>
+  <h2>Pollution Levels Over Time</h2>
 
 <div style={{ width: "100%", height: "300px" }}>    <ResponsiveContainer>
       <LineChart data={pollutionData}>
